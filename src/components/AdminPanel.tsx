@@ -14,8 +14,13 @@ import {
   Mail,
   Lock,
   Download,
-  FileText
+  FileText,
+  Key,
+  Copy,
+  RefreshCw
 } from 'lucide-react';
+import { collection, addDoc, getDocs, updateDoc, doc, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { db } from '../firebase';
 import { createMosqueUser } from '../utils/storage';
 import { getAllMosques } from '../utils/mosqueUtils';
 import { MosqueData, COUNTRIES } from '../types';
@@ -26,6 +31,25 @@ import {
   downloadMosquesSitemap
 } from '../utils/generateSitemap';
 
+interface ActivationCode {
+  id: string;
+  code: string;
+  status: 'available' | 'used' | 'disabled';
+  createdAt: Date;
+  usedBy?: string;
+  usedAt?: Date;
+}
+
+const generateCode = (): string => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let result = '';
+  for (let i = 0; i < 8; i++) {
+    if (i === 4) result += '-';
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
+
 interface AdminPanelProps {
   user: User | null;
   onLogout: () => void;
@@ -33,7 +57,12 @@ interface AdminPanelProps {
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ user, onLogout, onBack }) => {
-  const [activeTab, setActiveTab] = useState<'mosques' | 'admin'>('mosques');
+  const [activeTab, setActiveTab] = useState<'mosques' | 'codes' | 'admin'>('mosques');
+  const [codes, setCodes] = useState<ActivationCode[]>([]);
+  const [codesLoading, setCodesLoading] = useState(false);
+  const [generateCount, setGenerateCount] = useState(10);
+  const [generating, setGenerating] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [mosques, setMosques] = useState<MosqueData[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -97,7 +126,81 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onLogout, onBack }) => {
   // Load mosques on component mount
   useEffect(() => {
     loadMosques();
+    loadCodes();
   }, []);
+
+  const loadCodes = async () => {
+    setCodesLoading(true);
+    try {
+      const q = query(collection(db, 'activation_codes'), orderBy('createdAt', 'desc'));
+      const snap = await getDocs(q);
+      const list: ActivationCode[] = snap.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          code: data.code,
+          status: data.status,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          usedBy: data.usedBy,
+          usedAt: data.usedAt?.toDate()
+        };
+      });
+      setCodes(list);
+    } catch (err) {
+      console.error('خطأ في تحميل الرموز:', err);
+    } finally {
+      setCodesLoading(false);
+    }
+  };
+
+  const handleGenerateCodes = async () => {
+    setGenerating(true);
+    try {
+      const batch: Promise<any>[] = [];
+      for (let i = 0; i < generateCount; i++) {
+        batch.push(
+          addDoc(collection(db, 'activation_codes'), {
+            code: generateCode(),
+            status: 'available',
+            createdAt: serverTimestamp()
+          })
+        );
+      }
+      await Promise.all(batch);
+      await loadCodes();
+    } catch (err) {
+      console.error('خطأ في توليد الرموز:', err);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleDisableCode = async (id: string) => {
+    try {
+      await updateDoc(doc(db, 'activation_codes', id), { status: 'disabled' });
+      setCodes((prev) => prev.map((c) => (c.id === id ? { ...c, status: 'disabled' } : c)));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 2000);
+  };
+
+  const handleExportCSV = () => {
+    const available = codes.filter((c) => c.status === 'available');
+    const csv = ['الرمز,الحالة,تاريخ الإنشاء', ...available.map((c) => `${c.code},متاح,${c.createdAt.toLocaleDateString('ar-SA')}`)].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `activation_codes_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const loadMosques = async () => {
     setLoading(true);
@@ -243,6 +346,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onLogout, onBack }) => {
             <span>إدارة حسابات المساجد</span>
           </button>
           
+          <button
+            onClick={() => setActiveTab('codes')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+              activeTab === 'codes'
+                ? 'bg-red-500 text-white shadow-lg'
+                : 'text-white/70 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            <Key className="w-4 h-4" />
+            <span>رموز التفعيل</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('admin')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
@@ -534,6 +649,119 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onLogout, onBack }) => {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {activeTab === 'codes' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold">رموز التفعيل</h2>
+                <div className="flex items-center gap-2 text-sm text-white/60">
+                  <span>متاح: {codes.filter(c => c.status === 'available').length}</span>
+                  <span>/</span>
+                  <span>مستخدم: {codes.filter(c => c.status === 'used').length}</span>
+                  <span>/</span>
+                  <span>إجمالي: {codes.length}</span>
+                </div>
+              </div>
+
+              {/* توليد رموز جديدة */}
+              <div className="bg-white/5 rounded-2xl p-6 border border-white/10 flex flex-wrap items-end gap-4">
+                <div>
+                  <label className="block text-white/80 text-sm font-medium mb-2">عدد الرموز</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={generateCount}
+                    onChange={(e) => setGenerateCount(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+                    className="w-28 px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-red-400"
+                  />
+                </div>
+                <button
+                  onClick={handleGenerateCodes}
+                  disabled={generating}
+                  className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-600 text-white font-medium px-5 py-3 rounded-xl transition-colors"
+                >
+                  {generating ? <Loader className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
+                  <span>توليد رموز جديدة</span>
+                </button>
+                <button
+                  onClick={handleExportCSV}
+                  disabled={codes.filter(c => c.status === 'available').length === 0}
+                  className="flex items-center gap-2 bg-blue-500/20 hover:bg-blue-500/30 disabled:opacity-40 text-blue-200 border border-blue-500/30 px-5 py-3 rounded-xl transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>تصدير CSV</span>
+                </button>
+                <button
+                  onClick={loadCodes}
+                  className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
+                  title="تحديث"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* قائمة الرموز */}
+              {codesLoading ? (
+                <div className="text-center py-10">
+                  <Loader className="w-8 h-8 animate-spin mx-auto text-blue-400" />
+                </div>
+              ) : codes.length === 0 ? (
+                <div className="text-center py-10 text-white/50">
+                  <Key className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                  <p>لا توجد رموز بعد. ابدأ بتوليد رموز جديدة.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {codes.map((c) => (
+                    <div
+                      key={c.id}
+                      className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+                        c.status === 'available'
+                          ? 'bg-emerald-500/10 border-emerald-500/30'
+                          : c.status === 'used'
+                          ? 'bg-white/5 border-white/10 opacity-60'
+                          : 'bg-red-500/10 border-red-500/20 opacity-50'
+                      }`}
+                    >
+                      <div>
+                        <p className="font-mono font-bold text-white tracking-wider">{c.code}</p>
+                        <p className="text-xs text-white/40 mt-1">
+                          {c.status === 'available' ? 'متاح' : c.status === 'used' ? `مستخدم` : 'موقوف'}
+                          {' · '}
+                          {c.createdAt.toLocaleDateString('ar-SA')}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        {c.status === 'available' && (
+                          <>
+                            <button
+                              onClick={() => handleCopyCode(c.code)}
+                              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                              title="نسخ"
+                            >
+                              {copiedCode === c.code ? (
+                                <CheckCircle className="w-4 h-4 text-emerald-400" />
+                              ) : (
+                                <Copy className="w-4 h-4 text-white/50" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleDisableCode(c.id)}
+                              className="p-2 hover:bg-red-500/20 rounded-lg transition-colors"
+                              title="إيقاف"
+                            >
+                              <X className="w-4 h-4 text-white/50 hover:text-red-400" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

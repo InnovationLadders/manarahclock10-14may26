@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { Link } from 'react-router-dom';
 import { auth } from '../firebase';
 import { Eye, EyeOff, LogIn, ArrowRight } from 'lucide-react';
 
@@ -14,6 +15,25 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onBack }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [resetSent, setResetSent] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      setError('أدخل بريدك الإلكتروني أولاً لإرسال رابط الاستعادة');
+      return;
+    }
+    setResetting(true);
+    setError('');
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setResetSent(true);
+    } catch {
+      setError('تعذّر إرسال رابط الاستعادة. تحقق من البريد الإلكتروني.');
+    } finally {
+      setResetting(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,10 +171,27 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onBack }) => {
             </button>
           </form>
 
-          {/* معلومات إضافية */}
-          <div className="mt-6 text-center">
-            <p className="text-white/50 text-xs">
-              للحصول على حساب جديد، تواصل مع الإدارة
+          {/* نسيت كلمة المرور */}
+          <div className="mt-6 text-center space-y-3">
+            {resetSent ? (
+              <p className="text-emerald-300 text-sm">
+                تم إرسال رابط الاستعادة إلى بريدك الإلكتروني
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={handleResetPassword}
+                disabled={resetting}
+                className="text-white/50 hover:text-white/80 text-sm transition-colors"
+              >
+                {resetting ? 'جاري الإرسال...' : 'نسيت كلمة المرور؟'}
+              </button>
+            )}
+            <p className="text-white/30 text-xs">
+              مسجد جديد؟{' '}
+              <Link to="/register" className="text-emerald-400 hover:text-emerald-300 transition-colors">
+                سجّل الآن
+              </Link>
             </p>
           </div>
         </div>

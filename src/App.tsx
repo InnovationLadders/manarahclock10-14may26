@@ -17,6 +17,14 @@ import { Settings as SettingsIcon, Maximize, Minimize } from 'lucide-react';
 const MosquesLandingPage = lazy(() => import('./components/MosquesLandingPage'));
 const AdminLogin = lazy(() => import('./components/AdminLogin'));
 const AdminPanel = lazy(() => import('./components/AdminPanel'));
+const TVDisplayPage = lazy(() => import('./components/TVDisplayPage'));
+const PairPage = lazy(() => import('./components/PairPage'));
+const RegisterPage = lazy(() => import('./components/RegisterPage'));
+
+const isMobileDevice = () => {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    || window.innerWidth < 1024;
+};
 
 const MainApp: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -277,8 +285,44 @@ const MainApp: React.FC = () => {
     );
   }
 
+  const isMobile = isMobileDevice();
+
+  const getMobileScaleStyle = (): React.CSSProperties => {
+    if (!isMobile) return {};
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const isDeviceLandscape = vw > vh;
+
+    if (isPortrait) {
+      // شاشة المسجد طولية (9:16) — عرضها = 9 وارتفاعها = 16
+      if (isDeviceLandscape) {
+        const scale = vh / (vw * (16 / 9));
+        return { transform: `scale(${Math.min(scale, 1)})`, transformOrigin: 'top left', width: '100vw', height: '100vh', overflow: 'hidden' };
+      }
+      // جوال عمودي + شاشة طولية = مثالي
+      return {};
+    } else {
+      // شاشة المسجد أفقية (16:9)
+      if (!isDeviceLandscape) {
+        // جوال عمودي + شاشة أفقية: نُصغّر بعرض الجوال
+        const scale = vw / (vh * (16 / 9));
+        const scaleW = vw / window.screen.width;
+        const finalScale = Math.min(scaleW, scale, 1);
+        return {
+          transform: `scale(${finalScale})`,
+          transformOrigin: 'top left',
+          width: `${(1 / finalScale) * 100}%`,
+          height: `${(1 / finalScale) * 100}vh`
+        };
+      }
+      // جوال أفقي + شاشة أفقية = مثالي
+      return {};
+    }
+  };
+
   return (
-    <div className="relative" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+    <div className="relative overflow-hidden" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
+      style={getMobileScaleStyle()}>
       <MainDisplay user={user} mosqueFound={mosqueFound} mosqueId={mosqueId} />
       
       {/* أزرار التحكم */}
@@ -314,7 +358,7 @@ const MainApp: React.FC = () => {
           }`}
           title={user ? "الإعدادات" : "تسجيل الدخول"}
         >
-          <SettingsIcon className={`w-6 h-6 text-white ${user ? '' : 'animate-pulse'} ${isPortrait ? 'transform -rotate-90' : ''}`} />
+          <SettingsIcon className={`w-6 h-6 text-white ${isPortrait ? 'transform -rotate-90' : ''}`} />
         </button>
       </div>
 
@@ -335,6 +379,9 @@ function App() {
       }>
         <Routes>
           <Route path="/" element={<MosquesLandingPage />} />
+          <Route path="/tv" element={<TVDisplayPage />} />
+          <Route path="/pair" element={<PairPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/admin-login" element={<AdminLogin onLoginSuccess={(user) => window.location.href = '/admin-panel'} onBack={() => window.location.href = '/'} />} />
           <Route path="/admin-panel" element={<AdminPanel user={null} onLogout={() => { signOut(auth); window.location.href = '/'; }} onBack={() => window.location.href = '/'} />} />
           <Route path="/display" element={<MainApp />} />

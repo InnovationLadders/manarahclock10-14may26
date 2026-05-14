@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, Search, Filter, Clock, Users, Globe, ExternalLink, Fuel as Mosque, Star, Calendar, BookOpen, ChevronDown, RefreshCw, Mail, Phone, Map as MapIcon, Shield } from 'lucide-react';
+import { MapPin, Search, Filter, Clock, Users, Globe, ExternalLink, Fuel as Mosque, Star, Calendar, BookOpen, ChevronDown, RefreshCw, Mail, Phone, Map as MapIcon, Shield, PlusCircle, Chrome } from 'lucide-react';
 import { MosqueData, MADHABS } from '../types';
 import { getAllMosques, getAvailableCities, getCacheInfo, clearLocalCache } from '../utils/mosqueUtils';
 import SEOHelmet from './SEOHelmet';
@@ -229,8 +229,15 @@ const MosquesLandingPage: React.FC = () => {
                 </div>
 
                 <Link
-                  to="/display"
+                  to="/register"
                   className="flex-1 lg:flex-none px-3 sm:px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-emerald-600 to-green-700 hover:from-emerald-700 hover:to-green-800 text-white font-medium rounded-lg md:rounded-xl transition-all duration-300 transform hover:scale-105 shadow-xl flex items-center justify-center gap-2 md:gap-3 text-sm md:text-base"
+                >
+                  <PlusCircle className="w-4 md:w-5 h-4 md:h-5" />
+                  <span>سجّل مسجدك</span>
+                </Link>
+                <Link
+                  to="/display"
+                  className="flex-1 lg:flex-none px-3 sm:px-4 md:px-6 py-2 md:py-3 bg-white/15 hover:bg-white/25 border border-white/20 text-white font-medium rounded-lg md:rounded-xl transition-all duration-300 flex items-center justify-center gap-2 md:gap-3 text-sm md:text-base"
                 >
                   <Clock className="w-4 md:w-5 h-4 md:h-5" />
                   <span className="hidden sm:inline">الشاشة الرئيسية</span>
@@ -560,6 +567,26 @@ const MosquesLandingPage: React.FC = () => {
               </div>
 
               <div className="mt-6 pt-6 border-t border-white/10">
+                {/* زر Chrome */}
+                <div className="flex justify-center mb-5">
+                  <a
+                    href="https://www.google.com/chrome/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex items-center gap-3 px-5 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl transition-all duration-300"
+                  >
+                    <Chrome className="w-5 h-5 text-blue-300 group-hover:text-blue-200" />
+                    <div className="text-right">
+                      <p className="text-white text-sm font-medium" style={{ fontFamily: 'Cairo, sans-serif' }}>
+                        هل تواجه مشكلة في العرض؟
+                      </p>
+                      <p className="text-white/50 text-xs" style={{ fontFamily: 'Cairo, sans-serif' }}>
+                        حمّل متصفح Chrome للحصول على أفضل تجربة
+                      </p>
+                    </div>
+                  </a>
+                </div>
+
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                   <p className="text-white/50 text-sm sm:text-base" style={{ fontFamily: 'Cairo, sans-serif' }}>
                     الإصدار 2.0
@@ -567,10 +594,10 @@ const MosquesLandingPage: React.FC = () => {
                   <span className="hidden sm:inline text-white/30">•</span>
                   <Link
                     to="/admin-login"
-                    className="group flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-red-400/50 rounded-xl transition-all duration-300 transform hover:scale-105"
+                    className="group flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-red-400/30 rounded-xl transition-all duration-300"
                   >
-                    <Shield className="w-4 h-4 text-red-400 group-hover:text-red-300 transition-colors" />
-                    <span className="text-white/70 group-hover:text-white text-sm sm:text-base transition-colors" style={{ fontFamily: 'Cairo, sans-serif' }}>
+                    <Shield className="w-3 h-3 text-red-400/60 group-hover:text-red-300 transition-colors" />
+                    <span className="text-white/30 group-hover:text-white/60 text-xs transition-colors" style={{ fontFamily: 'Cairo, sans-serif' }}>
                       دخول الأدمن
                     </span>
                   </Link>

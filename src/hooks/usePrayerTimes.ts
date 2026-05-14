@@ -1,23 +1,28 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { User } from 'firebase/auth';
 import { PrayerTimes, Settings } from '../types';
 import { calculatePrayerTimes } from '../utils/prayerCalculations';
-import { getSettings, getSettingsSync } from '../utils/storage';
+import { getSettings, getSettingsSync, subscribeToSettings } from '../utils/storage';
 
 export const usePrayerTimes = (user?: User | null, mosqueId?: string) => {
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [mosqueFound, setMosqueFound] = useState<boolean>(true);
   const [loading, setLoading] = useState(true);
+  const unsubRef = useRef<(() => void) | null>(null);
 
-  // تحديث الإعدادات عند تغيير المستخدم
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
+
+    const uid = mosqueId || user?.uid;
+
+    // إلغاء الاشتراك السابق
+    unsubRef.current?.();
+    unsubRef.current = null;
 
     const loadSettings = async () => {
       setLoading(true);
 
-      // إضافة مهلة زمنية للتحميل (10 ثوانٍ)
       timeoutId = setTimeout(() => {
         setLoading(false);
         setMosqueFound(false);
@@ -25,45 +30,48 @@ export const usePrayerTimes = (user?: User | null, mosqueId?: string) => {
 
       try {
         const { settings: newSettings, found } = await getSettings(user, mosqueId);
-        clearTimeout(timeoutId); // إلغاء المهلة الزمنية عند النجاح
-
+        clearTimeout(timeoutId);
         setSettings(newSettings);
         setMosqueFound(found);
       } catch (error) {
-        clearTimeout(timeoutId); // إلغاء المهلة الزمنية عند حدوث خطأ
+        clearTimeout(timeoutId);
         setMosqueFound(false);
-        // تحميل الإعدادات الافتراضية في حالة الخطأ
         setSettings(getSettingsSync(mosqueId));
       } finally {
         setLoading(false);
+      }
+
+      // الاشتراك بالتحديثات الفورية إذا كان لدينا uid
+      if (uid) {
+        unsubRef.current = subscribeToSettings(uid, (updated) => {
+          setSettings(updated);
+          setMosqueFound(true);
+        });
       }
     };
 
     loadSettings();
 
-    // تنظيف المهلة الزمنية عند إلغاء التحميل
     return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+      clearTimeout(timeoutId);
+      unsubRef.current?.();
+      unsubRef.current = null;
     };
-  }, [user, mosqueId]);
+  }, [user?.uid, mosqueId]);
 
-  // تحديث أوقات الصلاة عند تغيير الإعدادات
   useEffect(() => {
     if (settings) {
       const times = calculatePrayerTimes(settings);
       setPrayerTimes(times);
     }
-    
-    // تحديث أوقات الصلاة كل دقيقة
+
     const interval = setInterval(() => {
       if (settings) {
         const times = calculatePrayerTimes(settings);
         setPrayerTimes(times);
       }
     }, 60000);
-    
+
     return () => clearInterval(interval);
   }, [settings]);
 
@@ -75,18 +83,17 @@ export const usePrayerTimes = (user?: User | null, mosqueId?: string) => {
       setMosqueFound(found);
     } catch (error) {
       setMosqueFound(false);
-      // Fallback to default settings if there's an error
       setSettings(getSettingsSync());
     } finally {
       setLoading(false);
     }
   };
 
-  return { 
-    prayerTimes, 
-    settings: settings || getSettingsSync(), // Provide fallback for initial render
+  return {
+    prayerTimes,
+    settings: settings || getSettingsSync(),
     mosqueFound,
-    refreshSettings, 
-    loading 
+    refreshSettings,
+    loading
   };
 };

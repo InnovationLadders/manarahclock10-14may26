@@ -1,6 +1,6 @@
 import { User } from 'firebase/auth';
 import { createUserWithEmailAndPassword, updatePassword } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage, auth } from '../firebase';
 import { Settings } from '../types';
@@ -518,6 +518,23 @@ export const createMosqueUser = async (
 // دالة مساعدة للحصول على الإعدادات بشكل متزامن (للاستخدام في الحالات التي لا تدعم async)
 export const getSettingsSync = (mosqueId?: string): Settings => {
   return getLocalSettings(mosqueId);
+};
+
+// الاشتراك بالتحديثات الفورية للإعدادات من Firestore
+export const subscribeToSettings = (
+  uid: string,
+  onUpdate: (settings: Settings) => void
+): (() => void) => {
+  const docRef = doc(db, 'mosques', uid);
+  return onSnapshot(docRef, (snap) => {
+    if (snap.exists()) {
+      const updated = deepMerge(DEFAULT_SETTINGS, snap.data()) as Settings;
+      saveLocalSettings(updated, uid);
+      onUpdate(updated);
+    }
+  }, (err) => {
+    console.warn('خطأ في الاشتراك بالتحديثات:', err);
+  });
 };
 
 // رفع صورة خلفية إلى Firebase Storage
