@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { doc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
+import { usePWAInstall } from '../hooks/usePWAInstall';
 
 const TVDisplayPage: React.FC = () => {
   const navigate = useNavigate();
@@ -12,9 +13,47 @@ const TVDisplayPage: React.FC = () => {
   });
   const [status, setStatus] = useState<'waiting' | 'selected'>('waiting');
   const [mosqueName, setMosqueName] = useState('');
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [installing, setInstalling] = useState(false);
   const unsubRef = useRef<(() => void) | null>(null);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+
+  const { canInstall, isInstalled, triggerInstall } = usePWAInstall();
 
   const pairUrl = `${window.location.origin}/pair?session=${sessionId}`;
+
+  // Show install banner shortly after page loads if not yet installed
+  useEffect(() => {
+    if (canInstall && !isInstalled) {
+      const timer = setTimeout(() => setShowInstallBanner(true), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [canInstall, isInstalled]);
+
+  // Request wake lock to prevent screen sleep on TV Box
+  useEffect(() => {
+    const requestWakeLock = async () => {
+      if ('wakeLock' in navigator) {
+        try {
+          wakeLockRef.current = await navigator.wakeLock.request('screen');
+        } catch {
+          // Wake lock not supported or denied — not critical
+        }
+      }
+    };
+
+    requestWakeLock();
+
+    const reacquire = () => {
+      if (document.visibilityState === 'visible') requestWakeLock();
+    };
+    document.addEventListener('visibilitychange', reacquire);
+
+    return () => {
+      document.removeEventListener('visibilitychange', reacquire);
+      wakeLockRef.current?.release().catch(() => {});
+    };
+  }, []);
 
   useEffect(() => {
     const sessionRef = doc(db, 'tv_sessions', sessionId);
@@ -43,6 +82,13 @@ const TVDisplayPage: React.FC = () => {
     };
   }, [sessionId, navigate]);
 
+  const handleInstall = async () => {
+    setInstalling(true);
+    await triggerInstall();
+    setInstalling(false);
+    setShowInstallBanner(false);
+  };
+
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center"
@@ -55,6 +101,58 @@ const TVDisplayPage: React.FC = () => {
         <div className="absolute top-0 left-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
       </div>
+
+      {/* Install banner */}
+      {showInstallBanner && (
+        <div
+          className="absolute top-0 inset-x-0 z-50 flex items-center justify-between gap-4 px-8 py-4"
+          style={{
+            background: 'linear-gradient(90deg, #059669, #047857)',
+            fontFamily: 'Cairo, sans-serif'
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <img src="/logo_MANARAH_25.svg" alt="منارة" className="w-10 h-10 object-contain" />
+            <div>
+              <p className="text-white font-bold text-lg leading-tight">ثبّت ساعة منارة على شاشتك</p>
+              <p className="text-emerald-100 text-sm">لفتح التطبيق مباشرةً بدون متصفح في كل مرة</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              onClick={handleInstall}
+              disabled={installing}
+              className="flex items-center gap-2 px-6 py-2.5 bg-white text-emerald-700 font-bold rounded-xl hover:bg-emerald-50 transition-all duration-200 disabled:opacity-70 text-base"
+            >
+              {installing ? (
+                <>
+                  <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  جاري التثبيت...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  تثبيت الآن
+                </>
+              )}
+            </button>
+            <button
+              onClick={() => setShowInstallBanner(false)}
+              className="p-2 text-white/70 hover:text-white transition-colors rounded-lg"
+              aria-label="إغلاق"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="relative z-10 flex flex-col items-center gap-10 px-8">
         <div className="flex flex-col items-center gap-3">
@@ -97,6 +195,20 @@ const TVDisplayPage: React.FC = () => {
               <span className="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-pulse" />
               <span className="text-emerald-300 text-base">في انتظار المسح...</span>
             </div>
+
+            {/* Fallback install prompt below QR when banner was dismissed */}
+            {canInstall && !showInstallBanner && !isInstalled && (
+              <button
+                onClick={handleInstall}
+                disabled={installing}
+                className="flex items-center gap-2 px-6 py-3 bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-400/40 text-emerald-200 font-semibold rounded-2xl transition-all duration-200 text-base backdrop-blur-sm"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                أضف للشاشة الرئيسية
+              </button>
+            )}
           </>
         ) : (
           <div className="text-center flex flex-col items-center gap-6">

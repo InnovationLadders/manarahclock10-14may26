@@ -6,11 +6,13 @@
   "lang": "ar",
   "dir": "rtl",
   "theme_color": "#059669",
-  "background_color": "#059669",
+  "background_color": "#0f2027",
   "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone", "minimal-ui"],
   "orientation": "any",
   "scope": "/",
-  "start_url": "/",
+  "start_url": "/tv",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "pwa-192x192.png",
@@ -27,6 +29,15 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "manarah1.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "ساعة منارة - شاشة المسجد الذكية"
     }
   ]
 }

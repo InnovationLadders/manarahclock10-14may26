@@ -5,6 +5,7 @@ import { MosqueData, MADHABS } from '../types';
 import { getAllMosques, getAvailableCities, getCacheInfo, clearLocalCache } from '../utils/mosqueUtils';
 import SEOHelmet from './SEOHelmet';
 import { generateOrganizationSchema, generateWebSiteSchema, generateSoftwareApplicationSchema } from '../utils/seoSchemas';
+import { usePWAInstall } from '../hooks/usePWAInstall';
 
 const MosquesLandingPage: React.FC = () => {
   const [mosques, setMosques] = useState<MosqueData[]>([]);
@@ -19,9 +20,26 @@ const MosquesLandingPage: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [cacheInfo, setCacheInfo] = useState({ hasCache: false, cacheAge: 0, mosquesCount: 0 });
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [installing, setInstalling] = useState(false);
+  const { canInstall, isInstalled, triggerInstall } = usePWAInstall();
 
   // صورة المسجد الافتراضية
   const DEFAULT_MOSQUE_IMAGE = 'https://images.pexels.com/photos/2233416/pexels-photo-2233416.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop';
+
+  useEffect(() => {
+    if (canInstall && !isInstalled) {
+      const timer = setTimeout(() => setShowInstallBanner(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [canInstall, isInstalled]);
+
+  const handleInstall = async () => {
+    setInstalling(true);
+    await triggerInstall();
+    setInstalling(false);
+    setShowInstallBanner(false);
+  };
 
   // تحميل البيانات عند بدء التشغيل
   useEffect(() => {
@@ -174,6 +192,55 @@ const MosquesLandingPage: React.FC = () => {
 
       {/* المحتوى الرئيسي */}
       <div className="relative z-10">
+        {/* Install App Banner */}
+        {showInstallBanner && (
+          <div
+            className="sticky top-0 z-50 flex items-center justify-between gap-4 px-4 sm:px-8 py-3"
+            style={{ background: 'linear-gradient(90deg, #059669, #047857)', fontFamily: 'Cairo, sans-serif' }}
+          >
+            <div className="flex items-center gap-3">
+              <img src="/logo_MANARAH_25.svg" alt="منارة" className="w-9 h-9 object-contain shrink-0" />
+              <div>
+                <p className="text-white font-bold text-base leading-tight">ثبّت ساعة منارة على جهازك</p>
+                <p className="text-emerald-100 text-xs hidden sm:block">افتح التطبيق مباشرةً بدون متصفح في كل مرة</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={handleInstall}
+                disabled={installing}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-emerald-700 font-bold rounded-xl hover:bg-emerald-50 transition-all duration-200 disabled:opacity-70 text-sm"
+              >
+                {installing ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    جاري...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    تثبيت
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setShowInstallBanner(false)}
+                className="p-1.5 text-white/70 hover:text-white transition-colors"
+                aria-label="إغلاق"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* الرأس المحسن */}
         <header className="bg-white/10 backdrop-blur-xl border-b border-white/20 sticky top-0 z-50 shadow-2xl">
           <div className="container mx-auto px-3 sm:px-4 md:px-6 py-3 md:py-6">

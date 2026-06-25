@@ -31,6 +31,7 @@ export default defineConfig({
           'manarah1.png',
           'apple-touch-icon.png',
           'favicon.ico',
+          'pwa-192x192.png',
           'pwa-512x512.png',
           'logo_MANARAH_25.svg'
         ];
@@ -58,11 +59,14 @@ export default defineConfig({
         short_name: 'ساعة منارة',
         description: 'ساعة منارة - ساعة المسجد الذكية والتلفزيونية لعرض أوقات الصلاة والأذان بدقة عالية. نظام متطور لإدارة شاشات المساجد مع عرض الأدعية والإعلانات.',
         theme_color: '#059669',
-        background_color: '#059669',
+        background_color: '#0f2027',
         display: 'fullscreen',
+        display_override: ['fullscreen', 'standalone', 'minimal-ui'],
         orientation: 'any',
         lang: 'ar',
         dir: 'rtl',
+        start_url: '/tv',
+        prefer_related_applications: false,
         icons: [
           {
             src: 'pwa-192x192.png',
