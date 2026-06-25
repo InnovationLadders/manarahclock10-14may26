@@ -15,6 +15,7 @@ const TVDisplayPage: React.FC = () => {
   const [mosqueName, setMosqueName] = useState('');
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [installing, setInstalling] = useState(false);
+  const [showManualInstall, setShowManualInstall] = useState(false);
   const unsubRef = useRef<(() => void) | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
 
@@ -101,6 +102,63 @@ const TVDisplayPage: React.FC = () => {
         <div className="absolute top-0 left-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
       </div>
+
+      {/* Manual install instructions overlay */}
+      {showManualInstall && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowManualInstall(false)}>
+          <div
+            className="relative bg-white/10 border border-white/20 rounded-3xl p-8 max-w-lg w-full mx-4 shadow-2xl"
+            style={{ fontFamily: 'Cairo, sans-serif' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowManualInstall(false)}
+              className="absolute top-4 left-4 p-2 text-white/60 hover:text-white transition-colors"
+              aria-label="إغلاق"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <h2 className="text-2xl font-bold text-white mb-6 text-center">كيفية تثبيت التطبيق</h2>
+
+            <div className="space-y-5 text-right">
+              <div className="bg-white/10 rounded-2xl p-4">
+                <p className="text-emerald-300 font-bold mb-1">Chrome / Edge</p>
+                <p className="text-white/80 text-sm leading-relaxed">
+                  القائمة (ثلاث نقاط ⋮) &larr; <strong>إضافة إلى الشاشة الرئيسية</strong> أو <strong>تثبيت التطبيق</strong>
+                </p>
+              </div>
+              <div className="bg-white/10 rounded-2xl p-4">
+                <p className="text-emerald-300 font-bold mb-1">Samsung Internet</p>
+                <p className="text-white/80 text-sm leading-relaxed">
+                  القائمة &larr; <strong>إضافة صفحة إلى</strong> &larr; <strong>الشاشة الرئيسية</strong>
+                </p>
+              </div>
+              <div className="bg-white/10 rounded-2xl p-4">
+                <p className="text-emerald-300 font-bold mb-1">متصفح TV Box المدمج</p>
+                <p className="text-white/80 text-sm leading-relaxed">
+                  الإعدادات &larr; <strong>حفظ كتطبيق</strong> أو <strong>إضافة اختصار</strong>
+                </p>
+              </div>
+              <div className="bg-white/10 rounded-2xl p-4">
+                <p className="text-emerald-300 font-bold mb-1">Safari (iPhone/iPad)</p>
+                <p className="text-white/80 text-sm leading-relaxed">
+                  زر المشاركة &larr; <strong>أضف إلى الشاشة الرئيسية</strong>
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowManualInstall(false)}
+              className="mt-6 w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl transition-colors"
+            >
+              فهمت
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Install banner */}
       {showInstallBanner && (
@@ -196,7 +254,7 @@ const TVDisplayPage: React.FC = () => {
               <span className="text-emerald-300 text-base">في انتظار المسح...</span>
             </div>
 
-            {/* Fallback install prompt below QR when banner was dismissed */}
+            {/* زر التثبيت التلقائي عند توفره */}
             {canInstall && !showInstallBanner && !isInstalled && (
               <button
                 onClick={handleInstall}
@@ -207,6 +265,19 @@ const TVDisplayPage: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
                 أضف للشاشة الرئيسية
+              </button>
+            )}
+
+            {/* زر التثبيت اليدوي للأجهزة التي لا تدعم beforeinstallprompt */}
+            {!canInstall && !isInstalled && (
+              <button
+                onClick={() => setShowManualInstall(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 text-white/70 hover:text-white font-semibold rounded-2xl transition-all duration-200 text-sm backdrop-blur-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                كيفية تثبيت التطبيق
               </button>
             )}
           </>

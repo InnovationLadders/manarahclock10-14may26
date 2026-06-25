@@ -21,18 +21,66 @@ export const DEFAULT_SETTINGS: Settings = {
   madhab: 'Shafi',
   backgrounds: [
     {
-      id: '1',
-      url: 'https://images.pexels.com/photos/96957/pexels-photo-96957.jpeg?auto=compress&cs=tinysrgb&w=1600&h=900',
+      id: 'default-h1',
+      url: '/backgrounds/horizontal-1.jpg',
       type: 'image',
-      name: 'الغروب',
+      name: 'إسلامي أزرق',
       objectFit: 'fill',
       objectPosition: 'center'
     },
     {
-      id: '2',
-      url: 'https://images.pexels.com/photos/1261728/pexels-photo-1261728.jpeg?auto=compress&cs=tinysrgb&w=1600&h=900',
+      id: 'default-h3',
+      url: '/backgrounds/horizontal-3.jpg',
       type: 'image',
-      name: 'المسجد',
+      name: 'غروب',
+      objectFit: 'fill',
+      objectPosition: 'center'
+    },
+    {
+      id: 'default-v1',
+      url: '/backgrounds/vertical-1.jpg',
+      type: 'image',
+      name: 'عمودي أحمر',
+      objectFit: 'fill',
+      objectPosition: 'center'
+    },
+    {
+      id: 'default-v2',
+      url: '/backgrounds/vertical-2.jpg',
+      type: 'image',
+      name: 'عمودي أخضر',
+      objectFit: 'fill',
+      objectPosition: 'center'
+    },
+    {
+      id: 'default-v3',
+      url: '/backgrounds/vertical-3.png',
+      type: 'image',
+      name: 'عمودي بيج',
+      objectFit: 'fill',
+      objectPosition: 'center'
+    },
+    {
+      id: 'default-v4',
+      url: '/backgrounds/vertical-4.jpg',
+      type: 'image',
+      name: 'عمودي كحلي',
+      objectFit: 'fill',
+      objectPosition: 'center'
+    },
+    {
+      id: 'default-r1',
+      url: '/backgrounds/ROTAT-1.jpg',
+      type: 'image',
+      name: 'دوار فيروزي',
+      objectFit: 'fill',
+      objectPosition: 'center'
+    },
+    {
+      id: 'default-r2',
+      url: '/backgrounds/ROTAT-2.jpg',
+      type: 'image',
+      name: 'دوار إسلامي',
       objectFit: 'fill',
       objectPosition: 'center'
     }

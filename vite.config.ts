@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import svgr from 'vite-plugin-svgr';
-import { copyFileSync, existsSync } from 'fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
 import { resolve, join } from 'path';
 
 // https://vitejs.dev/config/
@@ -47,6 +47,20 @@ export default defineConfig({
             console.warn(`Could not copy ${file}:`, e);
           }
         }
+
+        // نسخ مجلد الخلفيات المحلية
+        const bgSrc = join(publicDir, 'backgrounds');
+        const bgDest = join(distDir, 'backgrounds');
+        if (existsSync(bgSrc)) {
+          try {
+            mkdirSync(bgDest, { recursive: true });
+            for (const file of readdirSync(bgSrc)) {
+              copyFileSync(join(bgSrc, file), join(bgDest, file));
+            }
+          } catch (e) {
+            console.warn('Could not copy backgrounds folder:', e);
+          }
+        }
       }
     },
     react(),
@@ -87,7 +101,8 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,html,ico,woff2}', '*.{png,svg,jpg,jpeg}'],
+        globIgnores: ['backgrounds/**'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -96,26 +111,32 @@ export default defineConfig({
               cacheName: 'google-fonts-cache',
               expiration: {
                 maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // 365 days
+                maxAgeSeconds: 60 * 60 * 24 * 365
               }
             }
           },
           {
-            urlPattern: /^https:\/\/images\.pexels\.com\/.*/i,
-            handler: 'CacheFirst',
+            // خلفيات Firebase Storage المرفوعة من المساجد — تُخزن للعمل أوف لاين
+            urlPattern: /^https:\/\/firebasestorage\.googleapis\.com\/.*\/backgrounds\/.*/i,
+            handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'pexels-images-cache',
+              cacheName: 'mosque-backgrounds-cache',
               expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 30
               }
             }
           },
           {
-            urlPattern: /.*\.(png|jpg|jpeg|gif|webp|svg|bmp|ico|mp4|webm|ogg|avi|mov)$/i,
-            handler: 'CacheFirst',
+            // الخلفيات المحلية — تُخزن عند أول استخدام ولا تُحمَّل مسبقاً
+            urlPattern: /\/backgrounds\/.+\.(jpg|jpeg|png|webp)$/i,
+            handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'media-files-cache',
+              cacheName: 'local-backgrounds-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 60
+              }
             }
           }
         ]

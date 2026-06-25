@@ -20,6 +20,8 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
   const { prayerTimes, settings, loading } = usePrayerTimes(user, mosqueId);
   const [currentBackgroundIndex, setCurrentBackgroundIndex] = useState(0);
   const [backgroundLoadError, setBackgroundLoadError] = useState(false);
+  const retryTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCountRef = React.useRef(0);
 
   const nextPrayer = prayerTimes ? getNextPrayer(prayerTimes, settings) : null;
   const isPortrait = settings.displayMode === 'portrait';
@@ -61,15 +63,26 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
   
   const currentBackground = getCurrentBackground();
   
-  // معالج خطأ تحميل الخلفية
-  const handleBackgroundError = (error: any) => {
-    console.error('خطأ في تحميل الخلفية:', currentBackground?.url, error);
-    setBackgroundLoadError(true);
+  // معالج خطأ تحميل الخلفية مع retry تلقائي
+  const handleBackgroundError = () => {
+    if (retryCountRef.current < 3) {
+      retryCountRef.current += 1;
+      retryTimerRef.current = setTimeout(() => {
+        setBackgroundLoadError(false);
+      }, 15000);
+    } else {
+      setBackgroundLoadError(true);
+    }
   };
-  
+
   // إعادة تعيين خطأ التحميل عند تغيير الخلفية الحالية
   useEffect(() => {
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    retryCountRef.current = 0;
     setBackgroundLoadError(false);
+    return () => {
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    };
   }, [currentBackground?.id]);
   
   // تحويل objectFit إلى فئات CSS
@@ -169,21 +182,8 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
       {currentBackground && (
         <>
           {backgroundLoadError ? (
-            // خلفية احتياطية عند فشل التحميل
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-800 via-gray-900 to-black">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center text-white/30">
-                  <div className="w-16 h-16 mx-auto mb-4 opacity-50">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                      <circle cx="8.5" cy="8.5" r="1.5"/>
-                      <polyline points="21,15 16,10 5,21"/>
-                    </svg>
-                  </div>
-                  <p className="text-sm">تعذر تحميل الخلفية</p>
-                </div>
-              </div>
-            </div>
+            // خلفية احتياطية صامتة عند فشل التحميل
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(160deg, #0f2027 0%, #1a3a4a 40%, #0d1f2d 100%)' }} />
           ) : currentBackground.type === 'image' ? (
             <img
               src={currentBackground.url}
