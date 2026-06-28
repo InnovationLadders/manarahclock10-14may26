@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { doc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -7,6 +7,15 @@ import { usePWAInstall } from '../hooks/usePWAInstall';
 
 const TVDisplayPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // إذا وصل المستخدم مباشرة بكتابة الرابط (بدون state من التطبيق)، يُعاد توجيهه لصفحة المساجد
+  useEffect(() => {
+    const state = location.state as { fromApp?: boolean } | null;
+    if (!state?.fromApp) {
+      navigate('/', { replace: true });
+    }
+  }, [location.state, navigate]);
   const [sessionId] = useState(() => {
     const id = `tv_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
     return id;

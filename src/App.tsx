@@ -11,8 +11,9 @@ import Login from './components/Login';
 import PrayerInProgressScreen from './components/PrayerInProgressScreen';
 import PostPrayerDhikrScreen from './components/PostPrayerDhikrScreen';
 import { usePWAUpdate } from './hooks/usePWAUpdate';
+import { usePWAInstall } from './hooks/usePWAInstall';
 import { checkAdminStatus } from './utils/adminUtils';
-import { Settings as SettingsIcon, Maximize, Minimize } from 'lucide-react';
+import { Settings as SettingsIcon, Maximize, Minimize, Download } from 'lucide-react';
 
 const MosquesLandingPage = lazy(() => import('./components/MosquesLandingPage'));
 const AdminLogin = lazy(() => import('./components/AdminLogin'));
@@ -37,10 +38,12 @@ const MainApp: React.FC = () => {
   const [userIsAdmin, setUserIsAdmin] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const { updateAvailable, reloadApp, clearCache } = usePWAUpdate();
+  const { canInstall, isInstalled, triggerInstall } = usePWAInstall();
   const [showControls, setShowControls] = useState(true);
   const [manualScreenOverride, setManualScreenOverride] = useState<'mainDisplay' | null>(null);
   const hideTimer = useRef<NodeJS.Timeout | null>(null);
   const currentTime = useCurrentTime();
+  const [windowSize, setWindowSize] = useState({ w: window.innerWidth, h: window.innerHeight });
 
   const mosqueId = params.mosqueId || searchParams.get('mosqueId');
 
@@ -49,6 +52,57 @@ const MainApp: React.FC = () => {
       navigate('/', { replace: true });
     }
   }, [mosqueId, navigate]);
+
+  // مراقبة تغيير حجم الشاشة لإعادة حساب الـ scale
+  useEffect(() => {
+    const handleResize = () => setWindowSize({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, []);
+
+  // manifest ديناميكي مرتبط برابط المسجد المحدد
+  useEffect(() => {
+    if (!mosqueId) return;
+    const startUrl = `${window.location.origin}/mosque/${mosqueId}`;
+    const manifest = {
+      name: 'ساعة منارة - ساعة المسجد الذكية لأوقات الصلاة',
+      short_name: 'ساعة منارة',
+      description: 'ساعة منارة - ساعة المسجد الذكية والتلفزيونية لعرض أوقات الصلاة',
+      theme_color: '#059669',
+      background_color: '#0f2027',
+      display: 'fullscreen',
+      display_override: ['fullscreen', 'standalone', 'minimal-ui'],
+      orientation: 'any',
+      lang: 'ar',
+      dir: 'rtl',
+      start_url: startUrl,
+      scope: '/',
+      prefer_related_applications: false,
+      icons: [
+        { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+        { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+        { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+      ]
+    };
+    const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    let link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'manifest';
+      document.head.appendChild(link);
+    }
+    const prev = link.href;
+    link.href = url;
+    return () => {
+      URL.revokeObjectURL(url);
+      if (link) link.href = prev;
+    };
+  }, [mosqueId]);
   
   const { prayerTimes, settings, mosqueFound, refreshSettings, loading } = usePrayerTimes(user, mosqueId || undefined);
 
@@ -289,30 +343,43 @@ const MainApp: React.FC = () => {
 
   const getMobileScaleStyle = (): React.CSSProperties => {
     if (!isMobile) return {};
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const vw = windowSize.w;
+    const vh = windowSize.h;
     const isDeviceLandscape = vw > vh;
 
     if (isPortrait) {
-      // شاشة المسجد طولية (9:16) — عرضها = 9 وارتفاعها = 16
-      if (isDeviceLandscape) {
-        const scale = vh / (vw * (16 / 9));
-        return { transform: `scale(${Math.min(scale, 1)})`, transformOrigin: 'top left', width: '100vw', height: '100vh', overflow: 'hidden' };
-      }
-      // جوال عمودي + شاشة طولية = مثالي
-      return {};
+      // شاشة المسجد رأسية (9:16)
+      // نُصغّر العرض بحيث يساوي عرض الجوال مع الحفاظ على النسبة
+      const designW = 9;
+      const designH = 16;
+      const scale = vw / (vh * (designW / designH));
+      const finalScale = Math.min(scale, 1);
+      return {
+        position: 'fixed',
+        top: '50%',
+        left: '50%',
+        transform: `translate(-50%, -50%) scale(${finalScale})`,
+        transformOrigin: 'center center',
+        width: '100vw',
+        height: '100vh',
+      };
     } else {
       // شاشة المسجد أفقية (16:9)
       if (!isDeviceLandscape) {
-        // جوال عمودي + شاشة أفقية: نُصغّر بعرض الجوال
-        const scale = vw / (vh * (16 / 9));
-        const scaleW = vw / window.screen.width;
-        const finalScale = Math.min(scaleW, scale, 1);
+        // جوال ممسوك رأسياً + شاشة أفقية:
+        // نُدوّر 90 درجة ثم نُصغّر بحيث "العرض بعد التدوير" = عرض الجوال
+        // بعد التدوير: الارتفاع الأصلي (100vh) يصبح العرض الظاهر
+        // نريد الواجهة (16:9) تملأ عرض الجوال = vw
+        // وبعد التدوير: الارتفاع الأصلي = vw ← scale = vw / vh
+        const scale = vw / vh;
         return {
-          transform: `scale(${finalScale})`,
-          transformOrigin: 'top left',
-          width: `${(1 / finalScale) * 100}%`,
-          height: `${(1 / finalScale) * 100}vh`
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: `translate(-50%, -50%) rotate(90deg) scale(${scale})`,
+          transformOrigin: 'center center',
+          width: '100vw',
+          height: '100vh',
         };
       }
       // جوال أفقي + شاشة أفقية = مثالي
@@ -321,18 +388,22 @@ const MainApp: React.FC = () => {
   };
 
   return (
-    <div className="relative overflow-hidden" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
-      style={getMobileScaleStyle()}>
+    <div
+      className="relative overflow-hidden"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      style={getMobileScaleStyle()}
+    >
       <MainDisplay user={user} mosqueFound={mosqueFound} mosqueId={mosqueId} />
-      
+
       {/* أزرار التحكم */}
       <div className={`fixed flex gap-3 z-50 transition-all duration-300 ${
-        isPortrait 
-          ? 'top-24 right-8 transform -rotate-90 origin-top-right' 
+        isPortrait
+          ? 'top-24 right-8 transform -rotate-90 origin-top-right'
           : 'top-4 right-4'
       } ${
-        showControls 
-          ? 'opacity-100 pointer-events-auto' 
+        showControls
+          ? 'opacity-100 pointer-events-auto'
           : 'opacity-0 pointer-events-none'
       }`}>
         {/* زر ملء الشاشة */}
@@ -349,6 +420,19 @@ const MainApp: React.FC = () => {
             <Maximize className={`w-6 h-6 text-white ${isPortrait ? 'transform -rotate-90' : ''}`} />
           )}
         </button>
+
+        {/* زر تثبيت التطبيق — يظهر فقط عند توفر إمكانية التثبيت */}
+        {canInstall && !isInstalled && (
+          <button
+            onClick={() => triggerInstall()}
+            className={`p-3 bg-emerald-600/40 hover:bg-emerald-600/70 backdrop-blur-sm rounded-full border border-emerald-400/40 transition-all duration-300 ${
+              isPortrait ? 'transform rotate-90' : ''
+            }`}
+            title="تثبيت التطبيق على الجهاز"
+          >
+            <Download className={`w-6 h-6 text-white ${isPortrait ? 'transform -rotate-90' : ''}`} />
+          </button>
+        )}
 
         {/* زر الإعدادات */}
         <button

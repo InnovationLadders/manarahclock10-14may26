@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { MapPin, Search, Filter, Clock, Users, Globe, ExternalLink, Fuel as Mosque, Star, Calendar, BookOpen, ChevronDown, RefreshCw, Mail, Phone, Map as MapIcon, Shield, PlusCircle, Chrome } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { MapPin, Search, Filter, Clock, Users, Globe, ExternalLink, Fuel as Mosque, Star, Calendar, BookOpen, ChevronDown, RefreshCw, Mail, Phone, Map as MapIcon, Shield, PlusCircle, Chrome, Tv } from 'lucide-react';
 import { MosqueData, MADHABS } from '../types';
 import { getAllMosques, getAvailableCities, getCacheInfo, clearLocalCache } from '../utils/mosqueUtils';
 import SEOHelmet from './SEOHelmet';
@@ -8,6 +8,7 @@ import { generateOrganizationSchema, generateWebSiteSchema, generateSoftwareAppl
 import { usePWAInstall } from '../hooks/usePWAInstall';
 
 const MosquesLandingPage: React.FC = () => {
+  const navigate = useNavigate();
   const [mosques, setMosques] = useState<MosqueData[]>([]);
   const [filteredMosques, setFilteredMosques] = useState<MosqueData[]>([]);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
@@ -302,14 +303,14 @@ const MosquesLandingPage: React.FC = () => {
                   <PlusCircle className="w-4 md:w-5 h-4 md:h-5" />
                   <span>سجّل مسجدك</span>
                 </Link>
-                <Link
-                  to="/display"
+                <button
+                  onClick={() => navigate('/tv', { state: { fromApp: true } })}
                   className="flex-1 lg:flex-none px-3 sm:px-4 md:px-6 py-2 md:py-3 bg-white/15 hover:bg-white/25 border border-white/20 text-white font-medium rounded-lg md:rounded-xl transition-all duration-300 flex items-center justify-center gap-2 md:gap-3 text-sm md:text-base"
                 >
-                  <Clock className="w-4 md:w-5 h-4 md:h-5" />
-                  <span className="hidden sm:inline">الشاشة الرئيسية</span>
-                  <span className="sm:hidden">الشاشة</span>
-                </Link>
+                  <Tv className="w-4 md:w-5 h-4 md:h-5" />
+                  <span className="hidden sm:inline">ربط شاشة التلفزيون</span>
+                  <span className="sm:hidden">ربط</span>
+                </button>
               </div>
             </div>
           </div>
