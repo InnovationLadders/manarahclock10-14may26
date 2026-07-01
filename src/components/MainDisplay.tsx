@@ -175,7 +175,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
     );
   }
   return (
-    <div className={`h-screen flex flex-col text-white relative ${
+    <div className={`h-full flex flex-col text-white relative ${
       isPortrait ? 'main-display-portrait' : ''
     }`}>
       {/* الخلفية */}

@@ -27,6 +27,9 @@ const isMobileDevice = () => {
     || window.innerWidth < 1024;
 };
 
+const isTouchDevice = () =>
+  typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
 const MainApp: React.FC = () => {
   const [searchParams] = useSearchParams();
   const params = useParams();
@@ -187,6 +190,16 @@ const MainApp: React.FC = () => {
     }, 30000);
   };
 
+  // إظهار الأزرار عند اللمس على الجوال
+  const handleTouchStart = () => {
+    if (hideTimer.current) {
+      clearTimeout(hideTimer.current);
+      hideTimer.current = null;
+    }
+    setShowControls(true);
+    hideTimer.current = setTimeout(() => setShowControls(false), 5000);
+  };
+
   const handleSettingsClick = () => {
     // Always show login page when settings is clicked
     setShowLogin(true);
@@ -340,97 +353,120 @@ const MainApp: React.FC = () => {
   }
 
   const isMobile = isMobileDevice();
+  const isTouch = isTouchDevice();
 
-  const getMobileScaleStyle = (): React.CSSProperties => {
-    if (!isMobile) return {};
+  // يعيد أبعاد وتحويلات حاوية شاشة التلفزيون لمحاكاتها على الجوال
+  const getTVCanvasStyle = (): React.CSSProperties => {
     const vw = windowSize.w;
     const vh = windowSize.h;
     const isDeviceLandscape = vw > vh;
 
+    if (!isMobile) {
+      // سطح المكتب: حاوية عادية تملأ الشاشة
+      return { width: '100vw', height: '100vh' };
+    }
+
     if (isPortrait) {
       // شاشة المسجد رأسية (9:16)
-      // نُصغّر العرض بحيث يساوي عرض الجوال مع الحفاظ على النسبة
-      const designW = 9;
-      const designH = 16;
-      const scale = vw / (vh * (designW / designH));
-      const finalScale = Math.min(scale, 1);
-      return {
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: `translate(-50%, -50%) scale(${finalScale})`,
-        transformOrigin: 'center center',
-        width: '100vw',
-        height: '100vh',
-      };
-    } else {
-      // شاشة المسجد أفقية (16:9)
       if (!isDeviceLandscape) {
-        // جوال ممسوك رأسياً + شاشة أفقية:
-        // نُدوّر 90 درجة ثم نُصغّر بحيث "العرض بعد التدوير" = عرض الجوال
-        // بعد التدوير: الارتفاع الأصلي (100vh) يصبح العرض الظاهر
-        // نريد الواجهة (16:9) تملأ عرض الجوال = vw
-        // وبعد التدوير: الارتفاع الأصلي = vw ← scale = vw / vh
-        const scale = vw / vh;
+        // جوال رأسي + مسجد رأسي: يملأ الشاشة بشكل طبيعي
+        return { width: '100vw', height: '100vh' };
+      } else {
+        // جوال أفقي + مسجد رأسي: عرض شريط رأسي مُمركز
+        const canvasW = Math.round(vh * 9 / 16);
         return {
           position: 'fixed',
-          top: '50%',
-          left: '50%',
-          transform: `translate(-50%, -50%) rotate(90deg) scale(${scale})`,
-          transformOrigin: 'center center',
-          width: '100vw',
-          height: '100vh',
+          top: 0,
+          left: Math.round((vw - canvasW) / 2),
+          width: canvasW,
+          height: vh,
         };
       }
-      // جوال أفقي + شاشة أفقية = مثالي
-      return {};
+    } else {
+      // شاشة المسجد أفقية (16:9)
+      if (isDeviceLandscape) {
+        // جوال أفقي + مسجد أفقي: يملأ الشاشة بشكل طبيعي
+        return { width: '100vw', height: '100vh' };
+      } else {
+        // جوال رأسي + مسجد أفقي:
+        // نضع canvas بأبعاد (vh × vw) ثم ندوّره 90° فيصبح (vw × vh) بصرياً
+        // المركز: (vw/2, vh/2) — يُحسب من top/left + نصف الأبعاد
+        return {
+          position: 'fixed',
+          width: vh,
+          height: vw,
+          top: Math.round((vh - vw) / 2),
+          left: Math.round((vw - vh) / 2),
+          transform: 'rotate(90deg)',
+          transformOrigin: 'center center',
+        };
+      }
     }
   };
 
-  return (
-    <div
-      className="relative overflow-hidden"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      style={getMobileScaleStyle()}
-    >
-      <MainDisplay user={user} mosqueFound={mosqueFound} mosqueId={mosqueId} />
+  const canvasStyle = getTVCanvasStyle();
 
-      {/* أزرار التحكم */}
-      <div className={`fixed flex gap-3 z-50 transition-all duration-300 ${
-        isPortrait
-          ? 'top-24 right-8 transform -rotate-90 origin-top-right'
-          : 'top-4 right-4'
-      } ${
-        showControls
-          ? 'opacity-100 pointer-events-auto'
-          : 'opacity-0 pointer-events-none'
-      }`}>
+  // هل يحتاج الجهاز خلفية سوداء (letterbox)؟
+  const needsLetterbox = isMobile && (
+    (isPortrait && windowSize.w > windowSize.h) ||
+    (!isPortrait && windowSize.w < windowSize.h)
+  );
+
+  return (
+    <>
+      {/* خلفية سوداء لـ letterbox عند الحاجة */}
+      {needsLetterbox && (
+        <div className="fixed inset-0 bg-black z-0" />
+      )}
+
+      {/* حاوية شاشة التلفزيون */}
+      <div
+        className="relative overflow-hidden"
+        style={{ ...canvasStyle, zIndex: 1 }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onTouchStart={handleTouchStart}
+      >
+        <MainDisplay user={user} mosqueFound={mosqueFound} mosqueId={mosqueId} />
+      </div>
+
+      {/* أزرار التحكم — خارج حاوية الـ transform لتبقى على viewport مباشرة */}
+      <div
+        className={`fixed flex gap-3 z-50 transition-all duration-500 ${
+          isPortrait
+            ? 'top-24 right-8 -rotate-90 origin-top-right'
+            : 'top-4 right-4'
+        } ${
+          showControls
+            ? 'opacity-100 pointer-events-auto'
+            : 'opacity-0 pointer-events-none'
+        }`}
+      >
         {/* زر ملء الشاشة */}
         <button
           onClick={toggleFullscreen}
           className={`p-3 bg-black/30 hover:bg-black/50 backdrop-blur-sm rounded-full border border-white/20 transition-all duration-300 ${
-            isPortrait ? 'transform rotate-90' : ''
+            isPortrait ? 'rotate-90' : ''
           }`}
-          title={isFullscreen ? "الخروج من ملء الشاشة" : "ملء الشاشة"}
+          title={isFullscreen ? 'الخروج من ملء الشاشة' : 'ملء الشاشة'}
         >
           {isFullscreen ? (
-            <Minimize className={`w-6 h-6 text-white ${isPortrait ? 'transform -rotate-90' : ''}`} />
+            <Minimize className={`w-6 h-6 text-white ${isPortrait ? '-rotate-90' : ''}`} />
           ) : (
-            <Maximize className={`w-6 h-6 text-white ${isPortrait ? 'transform -rotate-90' : ''}`} />
+            <Maximize className={`w-6 h-6 text-white ${isPortrait ? '-rotate-90' : ''}`} />
           )}
         </button>
 
-        {/* زر تثبيت التطبيق — يظهر فقط عند توفر إمكانية التثبيت */}
-        {canInstall && !isInstalled && (
+        {/* زر تثبيت التطبيق على سطح المكتب (يخضع لمنطق الإخفاء) */}
+        {canInstall && !isInstalled && !isTouch && (
           <button
             onClick={() => triggerInstall()}
             className={`p-3 bg-emerald-600/40 hover:bg-emerald-600/70 backdrop-blur-sm rounded-full border border-emerald-400/40 transition-all duration-300 ${
-              isPortrait ? 'transform rotate-90' : ''
+              isPortrait ? 'rotate-90' : ''
             }`}
             title="تثبيت التطبيق على الجهاز"
           >
-            <Download className={`w-6 h-6 text-white ${isPortrait ? 'transform -rotate-90' : ''}`} />
+            <Download className={`w-6 h-6 text-white ${isPortrait ? '-rotate-90' : ''}`} />
           </button>
         )}
 
@@ -438,15 +474,26 @@ const MainApp: React.FC = () => {
         <button
           onClick={handleSettingsClick}
           className={`p-3 bg-black/30 hover:bg-black/50 backdrop-blur-sm rounded-full border border-white/20 transition-all duration-300 ${
-            isPortrait ? 'transform rotate-90' : ''
+            isPortrait ? 'rotate-90' : ''
           }`}
-          title={user ? "الإعدادات" : "تسجيل الدخول"}
+          title={user ? 'الإعدادات' : 'تسجيل الدخول'}
         >
-          <SettingsIcon className={`w-6 h-6 text-white ${isPortrait ? 'transform -rotate-90' : ''}`} />
+          <SettingsIcon className={`w-6 h-6 text-white ${isPortrait ? '-rotate-90' : ''}`} />
         </button>
       </div>
 
-    </div>
+      {/* زر تثبيت التطبيق على الجوال — دائم الظهور في أسفل الشاشة */}
+      {canInstall && !isInstalled && isTouch && (
+        <button
+          onClick={() => triggerInstall()}
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-6 py-3 bg-emerald-600/80 hover:bg-emerald-600 backdrop-blur-md rounded-2xl border border-emerald-400/50 shadow-2xl transition-all duration-300 text-white"
+          style={{ fontFamily: 'Cairo, sans-serif' }}
+        >
+          <Download className="w-5 h-5 shrink-0" />
+          <span className="font-semibold text-sm">ثبّت التطبيق على جهازك</span>
+        </button>
+      )}
+    </>
   );
 };
 
