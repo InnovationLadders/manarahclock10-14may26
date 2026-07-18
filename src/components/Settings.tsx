@@ -1245,6 +1245,78 @@ const Settings: React.FC<SettingsProps> = ({
                 )}
               </div>
 
+              {/* إعدادات يوم الجمعة */}
+              <div className="border-t border-white/10 pt-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-semibold">إعدادات يوم الجمعة</h3>
+                  <button
+                    onClick={() => updateSettings({ fridaySettings: { ...settings.fridaySettings, enabled: !settings.fridaySettings.enabled } })}
+                    className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                      settings.fridaySettings.enabled
+                        ? 'bg-green-500/20 text-green-200 border border-green-500/30'
+                        : 'bg-gray-500/20 text-gray-200 border border-gray-500/30'
+                    }`}
+                  >
+                    {settings.fridaySettings.enabled ? 'مفعل' : 'معطل'}
+                  </button>
+                </div>
+
+                {settings.fridaySettings.enabled && (
+                  <div className="space-y-4">
+                    <p className="text-white/70 text-sm">
+                      عند التفعيل، يُستبدل صف الظهر بصف الجمعة من بعد مغرب الخميس حتى مغرب الجمعة. عمود الأذان يمثل الأذان الأول، وعمود الإقامة يمثل الأذان الثاني الذي تظهر عنده الشاشة السوداء.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-white/90 text-sm font-medium mb-2">
+                          فرق الأذان الأول عن الظهر (بالدقائق)
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="-60"
+                            max="60"
+                            value={settings.fridaySettings.firstAdhanAdjustment}
+                            onChange={(e) => updateSettings({ fridaySettings: { ...settings.fridaySettings, firstAdhanAdjustment: parseInt(e.target.value) || 0 } })}
+                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                          />
+                          <span className="text-white/60 text-xs">د</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-white/90 text-sm font-medium mb-2">
+                          الفرق بين الأذانين (بالدقائق)
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="0"
+                            max="120"
+                            value={settings.fridaySettings.secondAdhanGap}
+                            onChange={(e) => updateSettings({ fridaySettings: { ...settings.fridaySettings, secondAdhanGap: parseInt(e.target.value) || 0 } })}
+                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                          />
+                          <span className="text-white/60 text-xs">د</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-white/90 text-sm font-medium mb-2">
+                          مدة صلاة الجمعة (بالدقائق)
+                        </label>
+                        <input
+                          type="number"
+                          min="5"
+                          max="90"
+                          value={settings.fridaySettings.prayerDuration}
+                          onChange={(e) => updateSettings({ fridaySettings: { ...settings.fridaySettings, prayerDuration: parseInt(e.target.value) || 30 } })}
+                          className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* أذكار ما بعد الصلاة */}
               <div>
                 <div className="flex items-center justify-between mb-4">

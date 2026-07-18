@@ -7,13 +7,14 @@ interface PrayerTimesBarProps {
   settings: Settings;
   isLargeDisplay?: boolean;
   isVerticalLayout?: boolean;
+  isFriday?: boolean;
 }
 
-const PrayerTimesBar: React.FC<PrayerTimesBarProps> = ({ prayerTimes, settings, isLargeDisplay = false, isVerticalLayout = false }) => {
+const PrayerTimesBar: React.FC<PrayerTimesBarProps> = ({ prayerTimes, settings, isLargeDisplay = false, isVerticalLayout = false, isFriday = false }) => {
   const prayers = [
     { name: 'الفجر', time: prayerTimes.fajr, delay: settings.iqamahDelays.fajr },
     { name: 'الشروق', time: prayerTimes.sunrise, delay: settings.iqamahDelays.sunrise },
-    { name: 'الظهر', time: prayerTimes.dhuhr, delay: settings.iqamahDelays.dhuhr },
+    { name: isFriday ? 'الجمعة' : 'الظهر', time: prayerTimes.dhuhr, delay: settings.iqamahDelays.dhuhr },
     { name: 'العصر', time: prayerTimes.asr, delay: settings.iqamahDelays.asr },
     { name: 'المغرب', time: prayerTimes.maghrib, delay: settings.iqamahDelays.maghrib },
     { name: 'العشاء', time: prayerTimes.isha, delay: settings.iqamahDelays.isha }

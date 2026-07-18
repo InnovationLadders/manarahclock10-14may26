@@ -40,14 +40,14 @@ const getCalculationParams = (method: string) => {
   }
 };
 
-export const calculatePrayerTimes = (settings: Settings): PrayerTimes => {
+export const calculatePrayerTimes = (settings: Settings, date?: Date): PrayerTimes => {
   const coordinates = new Coordinates(settings.location.latitude, settings.location.longitude);
-  const date = new Date();
+  const calcDate = date || new Date();
 
   const params = getCalculationParams(settings.calculationMethod);
   params.madhab = settings.madhab === 'Hanafi' ? Madhab.Hanafi : Madhab.Shafi;
 
-  const prayerTimes = new AdhanPrayerTimes(coordinates, date, params);
+  const prayerTimes = new AdhanPrayerTimes(coordinates, calcDate, params);
 
   return {
     fajr: new Date(prayerTimes.fajr.getTime() + settings.prayerTimeAdjustments.fajr * 60000),
@@ -56,6 +56,61 @@ export const calculatePrayerTimes = (settings: Settings): PrayerTimes => {
     asr: new Date(prayerTimes.asr.getTime() + settings.prayerTimeAdjustments.asr * 60000),
     maghrib: new Date(prayerTimes.maghrib.getTime() + settings.prayerTimeAdjustments.maghrib * 60000),
     isha: new Date(prayerTimes.isha.getTime() + settings.prayerTimeAdjustments.isha * 60000)
+  };
+};
+
+const getMaghribForDate = (settings: Settings, date: Date): Date => {
+  const coords = new Coordinates(settings.location.latitude, settings.location.longitude);
+  const params = getCalculationParams(settings.calculationMethod);
+  params.madhab = settings.madhab === 'Hanafi' ? Madhab.Hanafi : Madhab.Shafi;
+  const times = new AdhanPrayerTimes(coords, date, params);
+  return new Date(times.maghrib.getTime() + settings.prayerTimeAdjustments.maghrib * 60000);
+};
+
+export const isFridayActive = (now: Date, settings: Settings): boolean => {
+  if (!settings.fridaySettings?.enabled) return false;
+
+  const day = now.getDay();
+
+  if (day === 5) {
+    const fridayMaghrib = getMaghribForDate(settings, now);
+    return now.getTime() < fridayMaghrib.getTime();
+  }
+
+  if (day === 4) {
+    const thursdayMaghrib = getMaghribForDate(settings, now);
+    return now.getTime() >= thursdayMaghrib.getTime();
+  }
+
+  return false;
+};
+
+export const getEffectiveSettings = (settings: Settings, now: Date): { settings: Settings; isFriday: boolean; fridayDate: Date | null } => {
+  if (!isFridayActive(now, settings)) {
+    return { settings, isFriday: false, fridayDate: null };
+  }
+
+  const fridayDate = now.getDay() === 5 ? new Date(now) : new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const friday = settings.fridaySettings;
+
+  return {
+    settings: {
+      ...settings,
+      prayerTimeAdjustments: {
+        ...settings.prayerTimeAdjustments,
+        dhuhr: friday.firstAdhanAdjustment
+      },
+      iqamahDelays: {
+        ...settings.iqamahDelays,
+        dhuhr: friday.secondAdhanGap
+      },
+      prayerDuration: {
+        ...settings.prayerDuration,
+        dhuhr: friday.prayerDuration
+      }
+    },
+    isFriday: true,
+    fridayDate
   };
 };
 

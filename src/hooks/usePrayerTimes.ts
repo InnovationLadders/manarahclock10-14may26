@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { User } from 'firebase/auth';
 import { PrayerTimes, Settings } from '../types';
-import { calculatePrayerTimes } from '../utils/prayerCalculations';
+import { calculatePrayerTimes, getEffectiveSettings } from '../utils/prayerCalculations';
 import { getSettings, getSettingsSync, subscribeToSettings } from '../utils/storage';
 
 export const usePrayerTimes = (user?: User | null, mosqueId?: string) => {
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [effectiveSettings, setEffectiveSettings] = useState<Settings | null>(null);
+  const [isFriday, setIsFriday] = useState<boolean>(false);
   const [mosqueFound, setMosqueFound] = useState<boolean>(true);
   const [loading, setLoading] = useState(true);
   const unsubRef = useRef<(() => void) | null>(null);
@@ -60,17 +62,19 @@ export const usePrayerTimes = (user?: User | null, mosqueId?: string) => {
   }, [user?.uid, mosqueId]);
 
   useEffect(() => {
-    if (settings) {
-      const times = calculatePrayerTimes(settings);
+    const compute = () => {
+      if (!settings) return;
+      const now = new Date();
+      const { settings: effective, isFriday: friActive, fridayDate } = getEffectiveSettings(settings, now);
+      const times = fridayDate ? calculatePrayerTimes(effective, fridayDate) : calculatePrayerTimes(effective);
       setPrayerTimes(times);
-    }
+      setEffectiveSettings(effective);
+      setIsFriday(friActive);
+    };
 
-    const interval = setInterval(() => {
-      if (settings) {
-        const times = calculatePrayerTimes(settings);
-        setPrayerTimes(times);
-      }
-    }, 60000);
+    compute();
+
+    const interval = setInterval(compute, 60000);
 
     return () => clearInterval(interval);
   }, [settings]);
@@ -91,7 +95,8 @@ export const usePrayerTimes = (user?: User | null, mosqueId?: string) => {
 
   return {
     prayerTimes,
-    settings: settings || getSettingsSync(),
+    settings: effectiveSettings || settings || getSettingsSync(),
+    isFriday,
     mosqueFound,
     refreshSettings,
     loading

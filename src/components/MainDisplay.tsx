@@ -17,7 +17,7 @@ interface MainDisplayProps {
 
 const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mosqueId }) => {
   const currentTime = useCurrentTime();
-  const { prayerTimes, settings, loading } = usePrayerTimes(user, mosqueId);
+  const { prayerTimes, settings, isFriday, loading } = usePrayerTimes(user, mosqueId);
   const [currentBackgroundIndex, setCurrentBackgroundIndex] = useState(0);
   const [backgroundLoadError, setBackgroundLoadError] = useState(false);
   const retryTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -507,7 +507,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
                 marginBottom: isPortrait ? '20px' : '0px'
               }}
             >
-              <PrayerTimesBar prayerTimes={prayerTimes} settings={settings} />
+              <PrayerTimesBar prayerTimes={prayerTimes} settings={settings} isFriday={isFriday} />
             </div>
           )}
         </>

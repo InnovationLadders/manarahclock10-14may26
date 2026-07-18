@@ -141,6 +141,12 @@ export interface Settings {
   postPrayerDhikrScreenHeight: number;
   showDuasPanel: boolean;
   showAnnouncementsPanel: boolean;
+  fridaySettings: {
+    enabled: boolean;
+    firstAdhanAdjustment: number;
+    secondAdhanGap: number;
+    prayerDuration: number;
+  };
 }
 
 export interface MosqueData {

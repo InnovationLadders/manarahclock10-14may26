@@ -243,7 +243,13 @@ export const DEFAULT_SETTINGS: Settings = {
 بعد الفجر والمغرب: لا إله إلا الله وحده لا شريك له، له الملك وله الحمد، يُحيي ويُميت، وهو على كل شيء قدير. (10) مرات.`,
   postPrayerDhikrScreenHeight: 75,
   showDuasPanel: true,
-  showAnnouncementsPanel: true
+  showAnnouncementsPanel: true,
+  fridaySettings: {
+    enabled: false,
+    firstAdhanAdjustment: 0,
+    secondAdhanGap: 15,
+    prayerDuration: 30
+  }
 };
 
 // دالة مساعدة لدمج الكائنات بعمق
