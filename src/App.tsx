@@ -107,10 +107,10 @@ const MainApp: React.FC = () => {
     };
   }, [mosqueId]);
   
-  const { prayerTimes, settings, mosqueFound, refreshSettings, loading } = usePrayerTimes(user, mosqueId || undefined);
+  const { prayerTimes, settings, isFriday, mosqueFound, refreshSettings, loading } = usePrayerTimes(user, mosqueId || undefined);
 
   // تحديد حالة الشاشة التلقائية
-  const automaticScreenState = (prayerTimes && settings) ? getScreenState(prayerTimes, settings) : { state: 'mainDisplay' as const };
+  const automaticScreenState = (prayerTimes && settings) ? getScreenState(prayerTimes, settings, isFriday) : { state: 'mainDisplay' as const };
   
   // تحديد حالة الشاشة الفعلية (مع مراعاة التجاوز اليدوي)
   const effectiveScreenState = manualScreenOverride ? { state: manualScreenOverride } : automaticScreenState;

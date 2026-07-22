@@ -23,7 +23,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
   const retryTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryCountRef = React.useRef(0);
 
-  const nextPrayer = prayerTimes ? getNextPrayer(prayerTimes, settings) : null;
+  const nextPrayer = prayerTimes ? getNextPrayer(prayerTimes, settings, isFriday) : null;
   const isPortrait = settings.displayMode === 'portrait';
   
   // تدوير الخلفيات تلقائياً
@@ -736,7 +736,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
                 transformOrigin: 'center center'
               }}
             >
-                <PrayerTimesBar prayerTimes={prayerTimes} settings={settings} isLargeDisplay={true} isVerticalLayout={isPortrait} />
+                <PrayerTimesBar prayerTimes={prayerTimes} settings={settings} isLargeDisplay={true} isVerticalLayout={isPortrait} isFriday={isFriday} />
             </div>
           )}
 

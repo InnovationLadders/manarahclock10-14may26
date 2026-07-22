@@ -114,12 +114,12 @@ export const getEffectiveSettings = (settings: Settings, now: Date): { settings:
   };
 };
 
-export const getNextPrayer = (prayerTimes: PrayerTimes, settings: Settings): NextPrayer | null => {
+export const getNextPrayer = (prayerTimes: PrayerTimes, settings: Settings, isFriday: boolean = false): NextPrayer | null => {
   const now = new Date();
   const prayers = [
     { name: 'الفجر', time: prayerTimes.fajr, delay: settings.iqamahDelays.fajr },
     { name: 'الشروق', time: prayerTimes.sunrise, delay: settings.iqamahDelays.sunrise },
-    { name: 'الظهر', time: prayerTimes.dhuhr, delay: settings.iqamahDelays.dhuhr },
+    { name: isFriday ? 'الجمعة' : 'الظهر', time: prayerTimes.dhuhr, delay: settings.iqamahDelays.dhuhr },
     { name: 'العصر', time: prayerTimes.asr, delay: settings.iqamahDelays.asr },
     { name: 'المغرب', time: prayerTimes.maghrib, delay: settings.iqamahDelays.maghrib },
     { name: 'العشاء', time: prayerTimes.isha, delay: settings.iqamahDelays.isha }
@@ -186,12 +186,12 @@ export const formatCountdown = (targetTime: Date): string => {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 };
 
-export const getScreenState = (prayerTimes: PrayerTimes, settings: Settings): ScreenStateInfo => {
+export const getScreenState = (prayerTimes: PrayerTimes, settings: Settings, isFriday: boolean = false): ScreenStateInfo => {
   const now = new Date();
   const prayers = [
     { name: 'fajr', arabicName: 'الفجر', time: prayerTimes.fajr, delay: settings.iqamahDelays.fajr, duration: settings.prayerDuration.fajr },
     { name: 'sunrise', arabicName: 'الشروق', time: prayerTimes.sunrise, delay: settings.iqamahDelays.sunrise, duration: settings.prayerDuration.sunrise },
-    { name: 'dhuhr', arabicName: 'الظهر', time: prayerTimes.dhuhr, delay: settings.iqamahDelays.dhuhr, duration: settings.prayerDuration.dhuhr },
+    { name: 'dhuhr', arabicName: isFriday ? 'الجمعة' : 'الظهر', time: prayerTimes.dhuhr, delay: settings.iqamahDelays.dhuhr, duration: settings.prayerDuration.dhuhr },
     { name: 'asr', arabicName: 'العصر', time: prayerTimes.asr, delay: settings.iqamahDelays.asr, duration: settings.prayerDuration.asr },
     { name: 'maghrib', arabicName: 'المغرب', time: prayerTimes.maghrib, delay: settings.iqamahDelays.maghrib, duration: settings.prayerDuration.maghrib },
     { name: 'isha', arabicName: 'العشاء', time: prayerTimes.isha, delay: settings.iqamahDelays.isha, duration: settings.prayerDuration.isha }
