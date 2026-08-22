@@ -1,5 +1,6 @@
 import { Coordinates, CalculationMethod, PrayerTimes as AdhanPrayerTimes, Madhab } from 'adhan';
 import { PrayerTimes, NextPrayer, Settings } from '../types';
+import { getCorrectedTime } from './timeCorrection';
 
 export type AppScreenState = 'mainDisplay' | 'prayerInProgress' | 'postPrayerDhikr';
 
@@ -42,7 +43,7 @@ const getCalculationParams = (method: string) => {
 
 export const calculatePrayerTimes = (settings: Settings, date?: Date): PrayerTimes => {
   const coordinates = new Coordinates(settings.location.latitude, settings.location.longitude);
-  const calcDate = date || new Date();
+  const calcDate = date || getCorrectedTime();
 
   const params = getCalculationParams(settings.calculationMethod);
   params.madhab = settings.madhab === 'Hanafi' ? Madhab.Hanafi : Madhab.Shafi;
@@ -115,7 +116,7 @@ export const getEffectiveSettings = (settings: Settings, now: Date): { settings:
 };
 
 export const getNextPrayer = (prayerTimes: PrayerTimes, settings: Settings, isFriday: boolean = false): NextPrayer | null => {
-  const now = new Date();
+  const now = getCorrectedTime();
   const prayers = [
     { name: 'الفجر', time: prayerTimes.fajr, delay: settings.iqamahDelays.fajr },
     { name: 'الشروق', time: prayerTimes.sunrise, delay: settings.iqamahDelays.sunrise },
@@ -174,7 +175,7 @@ export const formatTime = (date: Date): string => {
 };
 
 export const formatCountdown = (targetTime: Date): string => {
-  const now = new Date();
+  const now = getCorrectedTime();
   const diff = targetTime.getTime() - now.getTime();
 
   if (diff <= 0) return '00:00:00';
@@ -187,7 +188,7 @@ export const formatCountdown = (targetTime: Date): string => {
 };
 
 export const getScreenState = (prayerTimes: PrayerTimes, settings: Settings, isFriday: boolean = false): ScreenStateInfo => {
-  const now = new Date();
+  const now = getCorrectedTime();
   const prayers = [
     { name: 'fajr', arabicName: 'الفجر', time: prayerTimes.fajr, delay: settings.iqamahDelays.fajr, duration: settings.prayerDuration.fajr },
     { name: 'sunrise', arabicName: 'الشروق', time: prayerTimes.sunrise, delay: settings.iqamahDelays.sunrise, duration: settings.prayerDuration.sunrise },
@@ -227,7 +228,7 @@ export const getScreenState = (prayerTimes: PrayerTimes, settings: Settings, isF
 };
 
 const getHijriDateUmmAlQura = (): string => {
-  const date = new Date();
+  const date = getCorrectedTime();
   try {
     const formatted = date.toLocaleDateString('ar-SA', {
       calendar: 'islamic-umalqura',
@@ -242,7 +243,7 @@ const getHijriDateUmmAlQura = (): string => {
 };
 
 const getHijriDateManual = (): string => {
-  const today = new Date();
+  const today = getCorrectedTime();
 
   const referenceGregorian = new Date(2000, 0, 1);
   const referenceHijriYear = 1420;
@@ -313,7 +314,7 @@ const getHijriMonthLength = (month: number, year: number): number => {
 };
 
 export const getGregorianDate = (): string => {
-  const date = new Date();
+  const date = getCorrectedTime();
   return date.toLocaleDateString('ar-SA', {
     calendar: 'gregory',
     year: 'numeric',

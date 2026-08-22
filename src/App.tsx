@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from './firebase';
 import { usePrayerTimes } from './hooks/usePrayerTimes';
-import { useCurrentTime } from './hooks/useTime';
+import { useCurrentTime, useClockResetDetection, useAutoTimeSync } from './hooks/useTime';
 import { getScreenState } from './utils/prayerCalculations';
 import MainDisplay from './components/MainDisplay';
 import Settings from './components/Settings';
@@ -13,7 +13,8 @@ import PostPrayerDhikrScreen from './components/PostPrayerDhikrScreen';
 import { usePWAUpdate } from './hooks/usePWAUpdate';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { checkAdminStatus } from './utils/adminUtils';
-import { Settings as SettingsIcon, Maximize, Minimize, Download } from 'lucide-react';
+import { Settings as SettingsIcon, Maximize, Minimize, Download, Clock, AlertTriangle, X } from 'lucide-react';
+import { detectClockReset, getSyncSource, recordDeviceTime } from './utils/timeCorrection';
 
 const MosquesLandingPage = lazy(() => import('./components/MosquesLandingPage'));
 const AdminLogin = lazy(() => import('./components/AdminLogin'));
@@ -21,6 +22,7 @@ const AdminPanel = lazy(() => import('./components/AdminPanel'));
 const TVDisplayPage = lazy(() => import('./components/TVDisplayPage'));
 const PairPage = lazy(() => import('./components/PairPage'));
 const RegisterPage = lazy(() => import('./components/RegisterPage'));
+const TimeSetup = lazy(() => import('./components/TimeSetup'));
 
 const isMobileDevice = () => {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
@@ -44,11 +46,34 @@ const MainApp: React.FC = () => {
   const { canInstall, isInstalled, triggerInstall } = usePWAInstall();
   const [showControls, setShowControls] = useState(true);
   const [manualScreenOverride, setManualScreenOverride] = useState<'mainDisplay' | null>(null);
+  const [showClockWarning, setShowClockWarning] = useState(false);
+  const [clockWarningDismissed, setClockWarningDismissed] = useState(false);
   const hideTimer = useRef<NodeJS.Timeout | null>(null);
   const currentTime = useCurrentTime();
   const [windowSize, setWindowSize] = useState({ w: window.innerWidth, h: window.innerHeight });
 
   const mosqueId = params.mosqueId || searchParams.get('mosqueId');
+
+  // Record device time periodically and detect clock resets on startup
+  useEffect(() => {
+    const resetDetected = detectClockReset();
+    const source = getSyncSource();
+    if (resetDetected && source === 'none' && !clockWarningDismissed) {
+      setShowClockWarning(true);
+    }
+    recordDeviceTime();
+  }, [clockWarningDismissed]);
+
+  // Auto-sync time from server when online
+  useAutoTimeSync();
+
+  // Continuously detect clock resets while running
+  useClockResetDetection(useCallback(() => {
+    const source = getSyncSource();
+    if (source === 'none' && !clockWarningDismissed) {
+      setShowClockWarning(true);
+    }
+  }, [clockWarningDismissed]));
 
   useEffect(() => {
     if (!mosqueId) {
@@ -430,6 +455,35 @@ const MainApp: React.FC = () => {
         <MainDisplay user={user} mosqueFound={mosqueFound} mosqueId={mosqueId} />
       </div>
 
+      {/* تحذير انحراف الساعة */}
+      {showClockWarning && !clockWarningDismissed && (
+        <div className="fixed top-0 inset-x-0 z-[60] bg-red-600/95 backdrop-blur-md text-white px-4 py-3 flex items-center justify-between gap-4 shadow-2xl" style={{ fontFamily: 'Cairo, sans-serif' }}>
+          <div className="flex items-center gap-3 flex-1">
+            <AlertTriangle className="w-6 h-6 text-yellow-300 shrink-0" />
+            <div className="flex-1">
+              <p className="font-bold text-sm md:text-base">يبدو أن ساعة الجهاز غير صحيحة</p>
+              <p className="text-red-100 text-xs md:text-sm">أوقات الصلاة قد تكون خاطئة — اضبط الوقت لإصلاحها</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => navigate('/set-time')}
+              className="flex items-center gap-2 px-4 py-2 bg-white text-red-700 font-bold rounded-xl hover:bg-red-50 transition-all duration-200 text-sm whitespace-nowrap"
+            >
+              <Clock className="w-4 h-4" />
+              <span>ضبط الوقت</span>
+            </button>
+            <button
+              onClick={() => { setClockWarningDismissed(true); setShowClockWarning(false); }}
+              className="p-2 text-white/80 hover:text-white transition-colors"
+              title="إغلاق"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* أزرار التحكم — خارج حاوية الـ transform لتبقى على viewport مباشرة */}
       <div
         className={`fixed flex gap-3 z-50 transition-all duration-500 ${
@@ -442,6 +496,17 @@ const MainApp: React.FC = () => {
             : 'opacity-0 pointer-events-none'
         }`}
       >
+        {/* زر ضبط الوقت */}
+        <button
+          onClick={() => navigate('/set-time')}
+          className={`p-3 bg-black/30 hover:bg-black/50 backdrop-blur-sm rounded-full border border-white/20 transition-all duration-300 ${
+            isPortrait ? 'rotate-90' : ''
+          }`}
+          title="ضبط الوقت"
+        >
+          <Clock className={`w-6 h-6 text-white ${isPortrait ? '-rotate-90' : ''}`} />
+        </button>
+
         {/* زر ملء الشاشة */}
         <button
           onClick={toggleFullscreen}
@@ -513,6 +578,7 @@ function App() {
           <Route path="/tv" element={<TVDisplayPage />} />
           <Route path="/pair" element={<PairPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/set-time" element={<TimeSetup />} />
           <Route path="/admin-login" element={<AdminLogin onLoginSuccess={(user) => window.location.href = '/admin-panel'} onBack={() => window.location.href = '/'} />} />
           <Route path="/admin-panel" element={<AdminPanel user={null} onLogout={() => { signOut(auth); window.location.href = '/'; }} onBack={() => window.location.href = '/'} />} />
           <Route path="/display" element={<MainApp />} />

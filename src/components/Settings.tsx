@@ -1351,6 +1351,24 @@ const Settings: React.FC<SettingsProps> = ({
                 )}
               </div>
 
+              {/* ضبط الساعة */}
+              <div className="border-t border-white/10 pt-8">
+                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-emerald-400" />
+                  ضبط ساعة الجهاز
+                </h3>
+                <p className="text-white/70 text-sm mb-4">
+                  عند انقطاع الكهرباء عن جهاز التلفزيون، قد تعود ساعة الجهاز لتاريخ خاطئ. استخدم هذه الأداة لضبط الوقت بدون الحاجة للدخول إلى إعدادات الأندرويد أو الاتصال بالإنترنت.
+                </p>
+                <a
+                  href="/set-time"
+                  className="inline-flex items-center gap-2 px-5 py-3 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-200 rounded-xl transition-all duration-300 font-medium"
+                >
+                  <Clock className="w-5 h-5" />
+                  <span>فتح شاشة ضبط الوقت</span>
+                </a>
+              </div>
+
               {/* إعدادات التطبيق */}
               <div className="border-t border-white/10 pt-8">
                 <h3 className="text-xl font-semibold mb-4">إعدادات التطبيق</h3>

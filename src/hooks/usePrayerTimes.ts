@@ -3,6 +3,7 @@ import { User } from 'firebase/auth';
 import { PrayerTimes, Settings } from '../types';
 import { calculatePrayerTimes, getEffectiveSettings } from '../utils/prayerCalculations';
 import { getSettings, getSettingsSync, subscribeToSettings } from '../utils/storage';
+import { getCorrectedTime } from '../utils/timeCorrection';
 
 export const usePrayerTimes = (user?: User | null, mosqueId?: string) => {
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);
@@ -64,7 +65,7 @@ export const usePrayerTimes = (user?: User | null, mosqueId?: string) => {
   useEffect(() => {
     const compute = () => {
       if (!settings) return;
-      const now = new Date();
+      const now = getCorrectedTime();
       const { settings: effective, isFriday: friActive, fridayDate } = getEffectiveSettings(settings, now);
       const times = fridayDate ? calculatePrayerTimes(effective, fridayDate) : calculatePrayerTimes(effective);
       setPrayerTimes(times);
