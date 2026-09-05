@@ -452,7 +452,7 @@ const MainApp: React.FC = () => {
         onMouseLeave={handleMouseLeave}
         onTouchStart={handleTouchStart}
       >
-        <MainDisplay user={user} mosqueFound={mosqueFound} mosqueId={mosqueId} />
+        <MainDisplay user={user} mosqueFound={mosqueFound} mosqueId={mosqueId} prayerTimes={prayerTimes} settings={settings} isFriday={isFriday} />
       </div>
 
       {/* تحذير انحراف الساعة */}

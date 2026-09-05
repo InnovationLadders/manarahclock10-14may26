@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
-import { ReactComponent as ManarahLogo } from '../assets/ManarahLogo.svg';
 import { useCurrentTime } from '../hooks/useTime';
-import { usePrayerTimes } from '../hooks/usePrayerTimes';
-import { getNextPrayer, formatTime, formatCountdown, getHijriDate, getGregorianDate } from '../utils/prayerCalculations';
+import { getNextPrayer, formatCountdown, getHijriDate, getGregorianDate } from '../utils/prayerCalculations';
+import { PrayerTimes as PrayerTimesType, Settings } from '../types';
 import PrayerTimesBar from './PrayerTimesBar';
 import CountdownRectangle from './CountdownRectangle';
 import DuasPanel from './DuasPanel';
@@ -13,11 +12,13 @@ interface MainDisplayProps {
   user?: User | null;
   mosqueFound?: boolean;
   mosqueId?: string;
+  prayerTimes?: PrayerTimesType | null;
+  settings: Settings;
+  isFriday?: boolean;
 }
 
-const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mosqueId }) => {
+const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mosqueId, prayerTimes, settings, isFriday = false }) => {
   const currentTime = useCurrentTime();
-  const { prayerTimes, settings, isFriday, loading } = usePrayerTimes(user, mosqueId);
   const [currentBackgroundIndex, setCurrentBackgroundIndex] = useState(0);
   const [backgroundLoadError, setBackgroundLoadError] = useState(false);
   const retryTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -63,8 +64,13 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
   
   const currentBackground = getCurrentBackground();
   
-  // معالج خطأ تحميل الخلفية مع retry تلقائي
+  // معالج خطأ تحميل الخلفية — لا نُظهر الخطأ عند انقطاع الإنترنت
+  // لأن الصورة قد تكون محفوظة في ذاكرة المتصفح (Service Worker cache)
   const handleBackgroundError = () => {
+    // إذا كان الجهاز غير متصل، لا نُظهر الخلفية الاحتياطية
+    // لأن الخطأ سببه انقطاع الشبكة وليس مشكلة في الصورة
+    if (!navigator.onLine) return;
+
     if (retryCountRef.current < 3) {
       retryCountRef.current += 1;
       retryTimerRef.current = setTimeout(() => {
@@ -129,19 +135,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
     }
   };
 
-  // عرض شاشة تحميل إذا كانت الإعدادات قيد التحميل
-  if (loading || !settings) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 text-white">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-xl font-medium">
-            {mosqueId ? `جاري تحميل بيانات المسجد...` : 'جاري تحميل الإعدادات...'}
-          </p>
-        </div>
-      </div>
-    );
-  }
+
 
   // عرض رسالة خطأ إذا لم يتم العثور على المسجد
   if (!mosqueFound) {

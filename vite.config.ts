@@ -116,9 +116,10 @@ export default defineConfig({
             }
           },
           {
-            // خلفيات Firebase Storage المرفوعة من المساجد — تُخزن للعمل أوف لاين
+            // خلفيات Firebase Storage المرفوعة من المساجد — CacheFirst للعمل أوف لاين
+            // عند انقطاع الإنترنت نستخدم النسخة المحفوظة مباشرة بدون محاولة الاتصال
             urlPattern: /^https:\/\/firebasestorage\.googleapis\.com\/.*\/backgrounds\/.*/i,
-            handler: 'StaleWhileRevalidate',
+            handler: 'CacheFirst',
             options: {
               cacheName: 'mosque-backgrounds-cache',
               expiration: {
@@ -128,9 +129,9 @@ export default defineConfig({
             }
           },
           {
-            // الخلفيات المحلية — تُخزن عند أول استخدام ولا تُحمَّل مسبقاً
+            // الخلفيات المحلية — CacheFirst: استخدم النسخة المحفوظة أولاً
             urlPattern: /\/backgrounds\/.+\.(jpg|jpeg|png|webp)$/i,
-            handler: 'StaleWhileRevalidate',
+            handler: 'CacheFirst',
             options: {
               cacheName: 'local-backgrounds-cache',
               expiration: {
