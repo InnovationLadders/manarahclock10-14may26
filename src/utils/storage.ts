@@ -15,7 +15,8 @@ export const DEFAULT_SETTINGS: Settings = {
     latitude: 24.7136,
     longitude: 46.6753,
     city: 'الرياض',
-    country: 'المملكة العربية السعودية'
+    country: 'المملكة العربية السعودية',
+    timezone: 'Asia/Riyadh'
   },
   calculationMethod: 'UmmAlQura',
   madhab: 'Shafi',

@@ -169,7 +169,7 @@ const PrayerTimeVerification: React.FC<PrayerTimeVerificationProps> = ({ setting
             ].map(prayer => (
               <div key={prayer.key} className="text-center p-3 bg-white/5 rounded-lg">
                 <div className="text-white/70 text-sm mb-1">{prayer.name}</div>
-                <div className="text-white font-mono text-lg">{formatTime(prayer.time)}</div>
+                <div className="text-white font-mono text-lg">{formatTime(prayer.time, settings.location.timezone)}</div>
               </div>
             ))}
           </div>
@@ -228,7 +228,7 @@ const PrayerTimeVerification: React.FC<PrayerTimeVerificationProps> = ({ setting
                     <div>
                       <div className="text-white font-medium">{comparison.arabicName}</div>
                       <div className="text-white/60 text-sm">
-                        محسوب: {formatTime(comparison.calculatedTime)} | رسمي: {comparison.officialTime}
+                        محسوب: {formatTime(comparison.calculatedTime, settings.location.timezone)} | رسمي: {comparison.officialTime}
                       </div>
                     </div>
                   </div>

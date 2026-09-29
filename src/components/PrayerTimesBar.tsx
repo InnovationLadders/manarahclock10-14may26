@@ -100,7 +100,7 @@ const PrayerTimesBar: React.FC<PrayerTimesBarProps> = ({ prayerTimes, settings, 
                         color: settings.colors.adhanTimes
                       }}
                     >
-                      {formatTime(prayer.time)}
+                      {formatTime(prayer.time, settings.location.timezone)}
                     </div>
                   </div>
                   
@@ -115,7 +115,7 @@ const PrayerTimesBar: React.FC<PrayerTimesBarProps> = ({ prayerTimes, settings, 
                         color: settings.colors.iqamahTimes
                       }}
                     >
-                      {formatTime(iqamahTime)}
+                      {formatTime(iqamahTime, settings.location.timezone)}
                     </div>
                   </div>
                 </div>
@@ -162,7 +162,7 @@ const PrayerTimesBar: React.FC<PrayerTimesBarProps> = ({ prayerTimes, settings, 
                     color: settings.colors.adhanTimes
                   }}
                 >
-                  {formatTime(prayer.time)}
+                  {formatTime(prayer.time, settings.location.timezone)}
                 </div>
                 <div 
                   className="drop-shadow-lg"
@@ -175,7 +175,7 @@ const PrayerTimesBar: React.FC<PrayerTimesBarProps> = ({ prayerTimes, settings, 
                     color: settings.colors.iqamahTimes
                   }}
                 >
-                  {formatTime(iqamahTime)}
+                  {formatTime(iqamahTime, settings.location.timezone)}
                 </div>
               </div>
             </div>

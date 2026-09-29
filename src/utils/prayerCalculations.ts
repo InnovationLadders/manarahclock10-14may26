@@ -1,6 +1,15 @@
-import { Coordinates, CalculationMethod, PrayerTimes as AdhanPrayerTimes, Madhab } from 'adhan';
+import { Coordinates, CalculationMethod, PrayerTimes as AdhanPrayerTimes, Madhab, CalculationParameters } from 'adhan';
 import { PrayerTimes, NextPrayer, Settings } from '../types';
 import { getCorrectedTime } from './timeCorrection';
+
+const makeCustomParams = (fajrAngle: number, ishaAngle: number, ishaInterval?: number, maghribAngle?: number): CalculationParameters => {
+  const params = CalculationMethod.Other();
+  params.fajrAngle = fajrAngle;
+  params.ishaAngle = ishaAngle;
+  if (ishaInterval !== undefined) params.ishaInterval = ishaInterval;
+  if (maghribAngle !== undefined) params.maghribAngle = maghribAngle;
+  return params;
+};
 
 export type AppScreenState = 'mainDisplay' | 'prayerInProgress' | 'postPrayerDhikr';
 
@@ -36,6 +45,26 @@ const getCalculationParams = (method: string) => {
       return CalculationMethod.Tehran();
     case 'MoonsightingCommittee':
       return CalculationMethod.MoonsightingCommittee();
+    case 'Gulf':
+      return makeCustomParams(19.5, 0, 90);
+    case 'France':
+      return makeCustomParams(12, 12);
+    case 'Russia':
+      return makeCustomParams(16, 15);
+    case 'Tunisia':
+      return makeCustomParams(18, 18);
+    case 'Algeria':
+      return makeCustomParams(18, 17);
+    case 'Morocco':
+      return makeCustomParams(19, 17);
+    case 'Portugal':
+      return makeCustomParams(18, 0, 77);
+    case 'Jordan':
+      return makeCustomParams(18, 18);
+    case 'Jakim':
+      return makeCustomParams(20, 18);
+    case 'Kemenag':
+      return makeCustomParams(20, 18);
     default:
       return CalculationMethod.MuslimWorldLeague();
   }
@@ -164,12 +193,16 @@ export const getNextPrayer = (prayerTimes: PrayerTimes, settings: Settings, isFr
   };
 };
 
-export const formatTime = (date: Date): string => {
-  const timeString = date.toLocaleTimeString('en-US', {
+export const formatTime = (date: Date, timezone?: string): string => {
+  const options: Intl.DateTimeFormatOptions = {
     hour: '2-digit',
     minute: '2-digit',
     hour12: true
-  });
+  };
+  if (timezone) {
+    options.timeZone = timezone;
+  }
+  const timeString = date.toLocaleTimeString('en-US', options);
 
   return timeString.replace(/\s*(AM|PM)$/g, '');
 };
@@ -227,15 +260,17 @@ export const getScreenState = (prayerTimes: PrayerTimes, settings: Settings, isF
   };
 };
 
-const getHijriDateUmmAlQura = (): string => {
+const getHijriDateUmmAlQura = (timezone?: string): string => {
   const date = getCorrectedTime();
   try {
-    const formatted = date.toLocaleDateString('ar-SA', {
+    const options: Intl.DateTimeFormatOptions = {
       calendar: 'islamic-umalqura',
       year: 'numeric',
       month: 'long',
       day: 'numeric'
-    });
+    };
+    if (timezone) options.timeZone = timezone;
+    const formatted = date.toLocaleDateString('ar-SA', options);
     return formatted.includes('هـ') ? formatted : `${formatted} هـ`;
   } catch (error) {
     return getHijriDateManual();
@@ -293,8 +328,8 @@ const getHijriDateManual = (): string => {
   return `${hijriDay} ${hijriMonths[hijriMonth - 1]} ${hijriYear} هـ`;
 };
 
-export const getHijriDate = (): string => {
-  return getHijriDateUmmAlQura();
+export const getHijriDate = (timezone?: string): string => {
+  return getHijriDateUmmAlQura(timezone);
 };
 
 const isHijriLeapYear = (year: number): boolean => {
@@ -313,13 +348,34 @@ const getHijriMonthLength = (month: number, year: number): number => {
   }
 };
 
-export const getGregorianDate = (): string => {
+export const getGregorianDate = (timezone?: string): string => {
   const date = getCorrectedTime();
-  return date.toLocaleDateString('ar-SA', {
+  const options: Intl.DateTimeFormatOptions = {
     calendar: 'gregory',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     weekday: 'short'
-  });
+  };
+  if (timezone) options.timeZone = timezone;
+  return date.toLocaleDateString('ar-SA', options);
+};
+
+export const formatCurrentTime = (timezone?: string): string => {
+  const date = getCorrectedTime();
+  const options: Intl.DateTimeFormatOptions = {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  };
+  if (timezone) options.timeZone = timezone;
+  return date.toLocaleTimeString('en-US', options);
+};
+
+export const getDateInTimezone = (timezone?: string): Date => {
+  const now = getCorrectedTime();
+  if (!timezone) return now;
+  const tzTime = now.toLocaleString('en-US', { timeZone: timezone });
+  return new Date(tzTime);
 };

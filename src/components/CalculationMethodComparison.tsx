@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Coordinates, CalculationMethod, PrayerTimes as AdhanPrayerTimes, Madhab } from 'adhan';
+import { Coordinates, CalculationMethod, PrayerTimes as AdhanPrayerTimes, Madhab, CalculationParameters } from 'adhan';
 import { Settings as SettingsType, CALCULATION_METHODS } from '../types';
 import { formatTime } from '../utils/prayerCalculations';
 import { ArrowUpDown, CheckCircle } from 'lucide-react';
@@ -39,6 +39,15 @@ const CalculationMethodComparison: React.FC<CalculationMethodComparisonProps> = 
     calculateAllMethods();
   }, [settings.location, settings.madhab]);
 
+  const makeCustomParams = (fajrAngle: number, ishaAngle: number, ishaInterval?: number, maghribAngle?: number): CalculationParameters => {
+    const params = CalculationMethod.Other();
+    params.fajrAngle = fajrAngle;
+    params.ishaAngle = ishaAngle;
+    if (ishaInterval !== undefined) params.ishaInterval = ishaInterval;
+    if (maghribAngle !== undefined) params.maghribAngle = maghribAngle;
+    return params;
+  };
+
   const getCalculationParams = (methodKey: string) => {
     switch (methodKey) {
       case 'UmmAlQura':
@@ -65,6 +74,26 @@ const CalculationMethodComparison: React.FC<CalculationMethodComparisonProps> = 
         return CalculationMethod.Tehran();
       case 'MoonsightingCommittee':
         return CalculationMethod.MoonsightingCommittee();
+      case 'Gulf':
+        return makeCustomParams(19.5, 0, 90);
+      case 'France':
+        return makeCustomParams(12, 12);
+      case 'Russia':
+        return makeCustomParams(16, 15);
+      case 'Tunisia':
+        return makeCustomParams(18, 18);
+      case 'Algeria':
+        return makeCustomParams(18, 17);
+      case 'Morocco':
+        return makeCustomParams(19, 17);
+      case 'Portugal':
+        return makeCustomParams(18, 0, 77);
+      case 'Jordan':
+        return makeCustomParams(18, 18);
+      case 'Jakim':
+        return makeCustomParams(20, 18);
+      case 'Kemenag':
+        return makeCustomParams(20, 18);
       default:
         return CalculationMethod.MuslimWorldLeague();
     }
@@ -207,11 +236,11 @@ const CalculationMethodComparison: React.FC<CalculationMethodComparisonProps> = 
                       </span>
                     </div>
                   </td>
-                  <td className="text-center p-3 font-mono text-white/90">{formatTime(result.times.fajr)}</td>
-                  <td className="text-center p-3 font-mono text-white/90">{formatTime(result.times.dhuhr)}</td>
-                  <td className="text-center p-3 font-mono text-white/90">{formatTime(result.times.asr)}</td>
-                  <td className="text-center p-3 font-mono text-white/90">{formatTime(result.times.maghrib)}</td>
-                  <td className="text-center p-3 font-mono text-white/90">{formatTime(result.times.isha)}</td>
+                  <td className="text-center p-3 font-mono text-white/90">{formatTime(result.times.fajr, settings.location.timezone)}</td>
+                  <td className="text-center p-3 font-mono text-white/90">{formatTime(result.times.dhuhr, settings.location.timezone)}</td>
+                  <td className="text-center p-3 font-mono text-white/90">{formatTime(result.times.asr, settings.location.timezone)}</td>
+                  <td className="text-center p-3 font-mono text-white/90">{formatTime(result.times.maghrib, settings.location.timezone)}</td>
+                  <td className="text-center p-3 font-mono text-white/90">{formatTime(result.times.isha, settings.location.timezone)}</td>
                   {officialTimes && officialTimes.fajr && (
                     <td className="text-center p-3">
                       {result.totalDifference !== undefined ? (

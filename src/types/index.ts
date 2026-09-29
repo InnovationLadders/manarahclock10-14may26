@@ -47,8 +47,9 @@ export interface Settings {
     city: string;
     country: string;
     manualCoordinates?: boolean;
+    timezone?: string;
   };
-  calculationMethod: 'UmmAlQura' | 'MuslimWorldLeague' | 'Egyptian' | 'Karachi' | 'NorthAmerica' | 'Dubai' | 'Kuwait' | 'Qatar' | 'Singapore' | 'Turkey' | 'Tehran' | 'MoonsightingCommittee';
+  calculationMethod: 'UmmAlQura' | 'MuslimWorldLeague' | 'Egyptian' | 'Karachi' | 'NorthAmerica' | 'Dubai' | 'Kuwait' | 'Qatar' | 'Singapore' | 'Turkey' | 'Tehran' | 'MoonsightingCommittee' | 'Gulf' | 'France' | 'Russia' | 'Tunisia' | 'Algeria' | 'Morocco' | 'Portugal' | 'Jordan' | 'Jakim' | 'Kemenag';
   madhab: 'Shafi' | 'Hanafi' | 'Maliki';
   backgrounds: BackgroundItem[];
   rotateBackgrounds: boolean;
@@ -161,6 +162,7 @@ export interface MosqueData {
     city: string;
     country: string;
     manualCoordinates?: boolean;
+    timezone?: string;
   };
   createdAt: Date;
   isActive: boolean;
@@ -187,36 +189,41 @@ export const SAUDI_CITIES = [
 ];
 
 export const COUNTRIES = [
-  { key: 'SA', name: 'المملكة العربية السعودية' },
-  { key: 'AE', name: 'الإمارات العربية المتحدة' },
-  { key: 'KW', name: 'الكويت' },
-  { key: 'QA', name: 'قطر' },
-  { key: 'BH', name: 'البحرين' },
-  { key: 'OM', name: 'عُمان' },
-  { key: 'JO', name: 'الأردن' },
-  { key: 'LB', name: 'لبنان' },
-  { key: 'SY', name: 'سوريا' },
-  { key: 'IQ', name: 'العراق' },
-  { key: 'EG', name: 'مصر' },
-  { key: 'LY', name: 'ليبيا' },
-  { key: 'TN', name: 'تونس' },
-  { key: 'DZ', name: 'الجزائر' },
-  { key: 'MA', name: 'المغرب' },
-  { key: 'SD', name: 'السودان' },
-  { key: 'YE', name: 'اليمن' },
-  { key: 'TR', name: 'تركيا' },
-  { key: 'MY', name: 'ماليزيا' },
-  { key: 'ID', name: 'إندونيسيا' },
-  { key: 'PK', name: 'باكستان' },
-  { key: 'BD', name: 'بنغلاديش' },
-  { key: 'IN', name: 'الهند' },
-  { key: 'US', name: 'الولايات المتحدة الأمريكية' },
-  { key: 'CA', name: 'كندا' },
-  { key: 'GB', name: 'المملكة المتحدة' },
-  { key: 'FR', name: 'فرنسا' },
-  { key: 'DE', name: 'ألمانيا' },
-  { key: 'AU', name: 'أستراليا' },
-  { key: 'OTHER', name: 'أخرى' }
+  { key: 'SA', name: 'المملكة العربية السعودية', timezone: 'Asia/Riyadh' },
+  { key: 'AE', name: 'الإمارات العربية المتحدة', timezone: 'Asia/Dubai' },
+  { key: 'KW', name: 'الكويت', timezone: 'Asia/Kuwait' },
+  { key: 'QA', name: 'قطر', timezone: 'Asia/Qatar' },
+  { key: 'BH', name: 'البحرين', timezone: 'Asia/Bahrain' },
+  { key: 'OM', name: 'عُمان', timezone: 'Asia/Muscat' },
+  { key: 'JO', name: 'الأردن', timezone: 'Asia/Amman' },
+  { key: 'LB', name: 'لبنان', timezone: 'Asia/Beirut' },
+  { key: 'SY', name: 'سوريا', timezone: 'Asia/Damascus' },
+  { key: 'IQ', name: 'العراق', timezone: 'Asia/Baghdad' },
+  { key: 'EG', name: 'مصر', timezone: 'Africa/Cairo' },
+  { key: 'LY', name: 'ليبيا', timezone: 'Africa/Tripoli' },
+  { key: 'TN', name: 'تونس', timezone: 'Africa/Tunis' },
+  { key: 'DZ', name: 'الجزائر', timezone: 'Africa/Algiers' },
+  { key: 'MA', name: 'المغرب', timezone: 'Africa/Casablanca' },
+  { key: 'SD', name: 'السودان', timezone: 'Africa/Khartoum' },
+  { key: 'YE', name: 'اليمن', timezone: 'Asia/Aden' },
+  { key: 'TR', name: 'تركيا', timezone: 'Europe/Istanbul' },
+  { key: 'MY', name: 'ماليزيا', timezone: 'Asia/Kuala_Lumpur' },
+  { key: 'ID', name: 'إندونيسيا', timezone: 'Asia/Jakarta' },
+  { key: 'PK', name: 'باكستان', timezone: 'Asia/Karachi' },
+  { key: 'BD', name: 'بنغلاديش', timezone: 'Asia/Dhaka' },
+  { key: 'IN', name: 'الهند', timezone: 'Asia/Kolkata' },
+  { key: 'US', name: 'الولايات المتحدة الأمريكية', timezone: 'America/New_York' },
+  { key: 'CA', name: 'كندا', timezone: 'America/Toronto' },
+  { key: 'GB', name: 'المملكة المتحدة', timezone: 'Europe/London' },
+  { key: 'FR', name: 'فرنسا', timezone: 'Europe/Paris' },
+  { key: 'DE', name: 'ألمانيا', timezone: 'Europe/Berlin' },
+  { key: 'AU', name: 'أستراليا', timezone: 'Australia/Sydney' },
+  { key: 'PT', name: 'البرتغال', timezone: 'Europe/Lisbon' },
+  { key: 'RU', name: 'روسيا', timezone: 'Europe/Moscow' },
+  { key: 'IR', name: 'إيران', timezone: 'Asia/Tehran' },
+  { key: 'NG', name: 'نيجيريا', timezone: 'Africa/Lagos' },
+  { key: 'ZA', name: 'جنوب إفريقيا', timezone: 'Africa/Johannesburg' },
+  { key: 'OTHER', name: 'أخرى', timezone: 'Asia/Riyadh' }
 ];
 
 export const CALCULATION_METHODS = [
@@ -225,13 +232,23 @@ export const CALCULATION_METHODS = [
   { key: 'Egyptian', name: 'الهيئة المصرية العامة للمساحة', region: 'مصر وإفريقيا' },
   { key: 'Karachi', name: 'جامعة العلوم الإسلامية، كراتشي', region: 'باكستان وبنغلاديش والهند' },
   { key: 'NorthAmerica', name: 'الجمعية الإسلامية لأمريكا الشمالية (ISNA)', region: 'أمريكا الشمالية' },
-  { key: 'Dubai', name: 'الهيئة العامة للشؤون الإسلامية - دبي', region: 'الإمارات' },
+  { key: 'Dubai', name: 'دبي', region: 'الإمارات' },
   { key: 'Kuwait', name: 'وزارة الأوقاف الكويتية', region: 'الكويت' },
   { key: 'Qatar', name: 'وزارة الأوقاف القطرية', region: 'قطر' },
-  { key: 'Singapore', name: 'المجلس الديني الإسلامي - سنغافورة', region: 'سنغافورة وماليزيا وإندونيسيا' },
+  { key: 'Singapore', name: 'المجلس الديني الإسلامي - سنغافورة', region: 'سنغافورة' },
   { key: 'Turkey', name: 'رئاسة الشؤون الدينية التركية (Diyanet)', region: 'تركيا' },
   { key: 'Tehran', name: 'معهد الجيوفيزياء - طهران', region: 'إيران' },
-  { key: 'MoonsightingCommittee', name: 'لجنة رصد الهلال', region: 'أمريكا الشمالية (بديل)' }
+  { key: 'MoonsightingCommittee', name: 'لجنة رصد الهلال', region: 'أمريكا الشمالية وأوروبا' },
+  { key: 'Gulf', name: 'منطقة الخليج', region: 'البحرين وعُمان ودول الخليج' },
+  { key: 'France', name: 'الاتحاد الإسلامي الفرنسي (UOIF)', region: 'فرنسا وأوروبا' },
+  { key: 'Russia', name: 'الإدارة الروحية لمسلمي روسيا', region: 'روسيا' },
+  { key: 'Tunisia', name: 'تونس', region: 'تونس' },
+  { key: 'Algeria', name: 'الجزائر', region: 'الجزائر' },
+  { key: 'Morocco', name: 'المغرب', region: 'المغرب' },
+  { key: 'Portugal', name: 'الجالية الإسلامية - البرتغال', region: 'البرتغال' },
+  { key: 'Jordan', name: 'وزارة الأوقاف الأردنية', region: 'الأردن' },
+  { key: 'Jakim', name: 'JAKIM - ماليزيا', region: 'ماليزيا' },
+  { key: 'Kemenag', name: 'KEMENAG - إندونيسيا', region: 'إندونيسيا' }
 ];
 
 export const MADHABS = [
@@ -273,31 +290,36 @@ export const COUNTRY_CALCULATION_METHOD_MAP: Record<string, string> = {
   'AE': 'Dubai',
   'KW': 'Kuwait',
   'QA': 'Qatar',
-  'BH': 'Dubai',
-  'OM': 'UmmAlQura',
-  'JO': 'MuslimWorldLeague',
+  'BH': 'Gulf',
+  'OM': 'Gulf',
+  'JO': 'Jordan',
   'LB': 'MuslimWorldLeague',
   'SY': 'MuslimWorldLeague',
   'IQ': 'MuslimWorldLeague',
   'EG': 'Egyptian',
   'LY': 'Egyptian',
-  'TN': 'MuslimWorldLeague',
-  'DZ': 'MuslimWorldLeague',
-  'MA': 'MuslimWorldLeague',
+  'TN': 'Tunisia',
+  'DZ': 'Algeria',
+  'MA': 'Morocco',
   'SD': 'Egyptian',
   'YE': 'UmmAlQura',
   'TR': 'Turkey',
-  'MY': 'Singapore',
-  'ID': 'Singapore',
+  'MY': 'Jakim',
+  'ID': 'Kemenag',
   'PK': 'Karachi',
   'BD': 'Karachi',
   'IN': 'Karachi',
-  'US': 'NorthAmerica',
-  'CA': 'NorthAmerica',
-  'GB': 'MuslimWorldLeague',
-  'FR': 'MuslimWorldLeague',
+  'US': 'MoonsightingCommittee',
+  'CA': 'MoonsightingCommittee',
+  'GB': 'MoonsightingCommittee',
+  'FR': 'France',
   'DE': 'MuslimWorldLeague',
   'AU': 'MuslimWorldLeague',
+  'PT': 'Portugal',
+  'RU': 'Russia',
+  'IR': 'Tehran',
+  'NG': 'Egyptian',
+  'ZA': 'MuslimWorldLeague',
   'OTHER': 'MuslimWorldLeague'
 };
 
@@ -308,11 +330,11 @@ export const COUNTRY_MADHAB_MAP: Record<string, string> = {
   'QA': 'Hanafi',
   'BH': 'Maliki',
   'OM': 'Shafi',
-  'JO': 'Hanafi',
+  'JO': 'Shafi',
   'LB': 'Shafi',
   'SY': 'Hanafi',
   'IQ': 'Hanafi',
-  'EG': 'Hanafi',
+  'EG': 'Shafi',
   'LY': 'Maliki',
   'TN': 'Maliki',
   'DZ': 'Maliki',
@@ -327,10 +349,15 @@ export const COUNTRY_MADHAB_MAP: Record<string, string> = {
   'IN': 'Hanafi',
   'US': 'Shafi',
   'CA': 'Shafi',
-  'GB': 'Hanafi',
+  'GB': 'Shafi',
   'FR': 'Maliki',
   'DE': 'Hanafi',
   'AU': 'Shafi',
+  'PT': 'Shafi',
+  'RU': 'Hanafi',
+  'IR': 'Hanafi',
+  'NG': 'Maliki',
+  'ZA': 'Shafi',
   'OTHER': 'Shafi'
 };
 
@@ -348,4 +375,12 @@ export function getRecommendedMadhab(countryName: string): string {
     return COUNTRY_MADHAB_MAP[country.key] || 'Shafi';
   }
   return 'Shafi';
+}
+
+export function getRecommendedTimezone(countryName: string): string {
+  const country = COUNTRIES.find(c => c.name === countryName);
+  if (country && country.timezone) {
+    return country.timezone;
+  }
+  return 'Asia/Riyadh';
 }

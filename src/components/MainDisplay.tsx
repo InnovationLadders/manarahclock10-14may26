@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { useCurrentTime } from '../hooks/useTime';
-import { getNextPrayer, formatCountdown, getHijriDate, getGregorianDate } from '../utils/prayerCalculations';
+import { getNextPrayer, formatCountdown, getHijriDate, getGregorianDate, formatCurrentTime } from '../utils/prayerCalculations';
 import { PrayerTimes as PrayerTimesType, Settings } from '../types';
 import PrayerTimesBar from './PrayerTimesBar';
 import CountdownRectangle from './CountdownRectangle';
@@ -284,12 +284,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
                         color: settings.colors.mainTime
                       }}
                     >
-                      {currentTime.toLocaleTimeString('en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                        hour12: true
-                      }).replace(/\s*(AM|PM)$/g, '')}
+                      {formatCurrentTime(settings.location.timezone).replace(/\s*(AM|PM)$/g, '')}
                     </div>
                   </div>
                   
@@ -311,7 +306,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
                           color: settings.colors.gregorianDate
                         }}
                       >
-                        {getGregorianDate()}
+                        {getGregorianDate(settings.location.timezone)}
                       </div>
                       <div className="text-white/40" style={{ fontSize: 'clamp(0.7rem, 2.2vw, 1rem)' }}>•</div>
                       <div
@@ -323,7 +318,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
                           color: settings.colors.hijriDate
                         }}
                       >
-                        {getHijriDate()}
+                        {getHijriDate(settings.location.timezone)}
                       </div>
                     </div>
                   </div>
@@ -413,12 +408,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
                           color: settings.colors.mainTime
                         }}
                       >
-                        {currentTime.toLocaleTimeString('en-US', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                          hour12: true
-                        }).replace(/\s*(AM|PM)$/g, '')}
+                        {formatCurrentTime(settings.location.timezone).replace(/\s*(AM|PM)$/g, '')}
                       </div>
                     </div>
                     
@@ -440,7 +430,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
                             color: settings.colors.gregorianDate
                           }}
                         >
-                          {getGregorianDate()}
+                          {getGregorianDate(settings.location.timezone)}
                         </div>
                         <div className="text-white/40" style={{ fontSize: 'clamp(0.9rem, 1.5vw, 1.5rem)' }}>•</div>
                         <div
@@ -452,7 +442,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
                             color: settings.colors.hijriDate
                           }}
                         >
-                          {getHijriDate()}
+                          {getHijriDate(settings.location.timezone)}
                         </div>
                       </div>
                     </div>
@@ -555,12 +545,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
                       color: settings.colors.mainTime
                     }}
                   >
-                    {currentTime.toLocaleTimeString('en-US', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      second: '2-digit',
-                      hour12: true
-                    }).replace(/\s*(AM|PM)$/g, '')}
+                    {formatCurrentTime(settings.location.timezone).replace(/\s*(AM|PM)$/g, '')}
                   </div>
                 </div>
                 
@@ -580,19 +565,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
                         color: settings.colors.gregorianDate
                       }}
                     >
-                      {getGregorianDate()}
-                    </div>
-                    <div className="text-white/40" style={{ fontSize: 'clamp(0.8rem, 2vw, 1rem)' }}>•</div>
-                    <div
-                      className="drop-shadow-lg"
-                      style={{
-                        fontFamily: `${settings.fontSettings.hijriDate.fontFamily}, serif`,
-                        fontWeight: settings.fontSettings.hijriDate.fontWeight,
-                        fontSize: 'clamp(0.9rem, 2.2vw, 1.2rem)',
-                        color: settings.colors.hijriDate
-                      }}
-                    >
-                      {getHijriDate()}
+                      {getGregorianDate(settings.location.timezone)}
                     </div>
                   </div>
                 </div>
@@ -662,12 +635,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
                       color: settings.colors.mainTime
                     }}
                   >
-                    {currentTime.toLocaleTimeString('en-US', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      second: '2-digit',
-                      hour12: true
-                    }).replace(/\s*(AM|PM)$/g, '')}
+                    {formatCurrentTime(settings.location.timezone).replace(/\s*(AM|PM)$/g, '')}
                   </div>
                 </div>
                 
@@ -687,7 +655,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
                         color: settings.colors.gregorianDate
                       }}
                     >
-                      {getGregorianDate()}
+                      {getGregorianDate(settings.location.timezone)}
                     </div>
                     <div className="text-white/40" style={{ fontSize: 'clamp(1rem, 1.5vw, 1.2rem)' }}>•</div>
                     <div
@@ -699,7 +667,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
                         color: settings.colors.hijriDate
                       }}
                     >
-                      {getHijriDate()}
+                      {getHijriDate(settings.location.timezone)}
                     </div>
                   </div>
                 </div>

@@ -27,7 +27,7 @@ import {
   Lock,
   Key
 } from 'lucide-react';
-import { Settings as SettingsType, BackgroundItem, COUNTRIES, CALCULATION_METHODS, MADHABS, FONT_FAMILIES, getRecommendedCalculationMethod, getRecommendedMadhab } from '../types';
+import { Settings as SettingsType, BackgroundItem, COUNTRIES, CALCULATION_METHODS, MADHABS, FONT_FAMILIES, getRecommendedCalculationMethod, getRecommendedMadhab, getRecommendedTimezone } from '../types';
 import { getSettings, saveSettings, uploadBackgroundImage, addBackgroundToSettings, removeBackgroundFromSettings, deleteBackgroundImage, updateUserPassword } from '../utils/storage';
 import LayoutColorSettings from './LayoutColorSettings';
 import LocationPicker from './LocationPicker';
@@ -278,6 +278,9 @@ const Settings: React.FC<SettingsProps> = ({
 
     const countryKey = COUNTRIES.find(c => c.name === countryName)?.key || 'SA';
     const cities = getCitiesByCountry(countryKey);
+    const recommendedMethod = getRecommendedCalculationMethod(countryName);
+    const recommendedMadhab = getRecommendedMadhab(countryName);
+    const recommendedTimezone = getRecommendedTimezone(countryName);
 
     setSettings({
       ...settings,
@@ -287,8 +290,11 @@ const Settings: React.FC<SettingsProps> = ({
         city: cities.length > 0 ? cities[0].name : '',
         latitude: cities.length > 0 ? cities[0].latitude : 0,
         longitude: cities.length > 0 ? cities[0].longitude : 0,
-        manualCoordinates: false
-      }
+        manualCoordinates: false,
+        timezone: recommendedTimezone
+      },
+      calculationMethod: recommendedMethod as any,
+      madhab: recommendedMadhab as any
     });
   };
 
@@ -613,6 +619,23 @@ const Settings: React.FC<SettingsProps> = ({
                     </p>
                   </div>
                 )}
+              </div>
+
+              {/* المنطقة الزمنية */}
+              <div>
+                <label className="block text-white/90 text-sm font-medium mb-2">
+                  المنطقة الزمنية
+                </label>
+                <input
+                  type="text"
+                  value={settings.location.timezone || 'Asia/Riyadh'}
+                  onChange={(e) => updateLocation('timezone', e.target.value)}
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent font-mono"
+                  placeholder="Asia/Riyadh"
+                />
+                <div className="mt-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-200 text-sm">
+                  <strong>مهم:</strong> تأكد من أن المنطقة الزمنية تطابق الدولة التي فيها المسجد لضمان تطابق الأوقات مع جوجل. مثال: مصر = Africa/Cairo، تركيا = Europe/Istanbul.
+                </div>
               </div>
 
               {/* طريقة الحساب والمذهب */}
