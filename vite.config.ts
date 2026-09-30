@@ -117,10 +117,12 @@ export default defineConfig({
           },
           {
             // خلفيات Firebase Storage المرفوعة من المساجد — CacheFirst للعمل أوف لاين
-            urlPattern: /^https:\/\/firebasestorage\.googleapis\.com\/.*\/backgrounds\/.*/i,
+            // %2F هو الشكل المشفّر لـ / في روابط Firebase Storage (backgrounds%2Fuid%2Ffile)
+            urlPattern: /^https:\/\/firebasestorage\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'mosque-backgrounds-cache',
+              cacheableResponse: { statuses: [0, 200] },
               expiration: {
                 maxEntries: 30,
                 maxAgeSeconds: 60 * 60 * 24 * 90
@@ -133,6 +135,7 @@ export default defineConfig({
             handler: 'CacheFirst',
             options: {
               cacheName: 'local-backgrounds-cache',
+              cacheableResponse: { statuses: [0, 200] },
               expiration: {
                 maxEntries: 30,
                 maxAgeSeconds: 60 * 60 * 24 * 90
