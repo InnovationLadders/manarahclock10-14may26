@@ -25,6 +25,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
   const [resolvedBgUrl, setResolvedBgUrl] = useState<string | null>(null);
   const [cachedIds, setCachedIds] = useState<Set<string>>(new Set());
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCountRef = useRef(0);
   const objectUrlRef = useRef<string | null>(null);
 
   const nextPrayer = prayerTimes ? getNextPrayer(prayerTimes, settings, isFriday) : null;
