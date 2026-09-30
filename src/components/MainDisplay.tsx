@@ -526,6 +526,18 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
                     >
                       {getGregorianDate(settings.location.timezone)}
                     </div>
+                    <div className="text-white/40" style={{ fontSize: 'clamp(0.8rem, 2vw, 1rem)' }}>•</div>
+                    <div
+                      className="drop-shadow-lg"
+                      style={{
+                        fontFamily: `${settings.fontSettings.hijriDate.fontFamily}, serif`,
+                        fontWeight: settings.fontSettings.hijriDate.fontWeight,
+                        fontSize: 'clamp(0.9rem, 2.2vw, 1.2rem)',
+                        color: settings.colors.hijriDate
+                      }}
+                    >
+                      {getHijriDate(settings.location.timezone)}
+                    </div>
                   </div>
                 </div>
 
