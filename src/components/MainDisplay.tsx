@@ -7,7 +7,7 @@ import PrayerTimesBar from './PrayerTimesBar';
 import CountdownRectangle from './CountdownRectangle';
 import DuasPanel from './DuasPanel';
 import AnnouncementsPanel from './AnnouncementsPanel';
-import { getCachedBlobUrl, cacheSelectedBackground } from '../utils/backgroundCache';
+
 
 interface MainDisplayProps {
   user?: User | null;
@@ -20,26 +20,12 @@ interface MainDisplayProps {
 
 const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mosqueId, prayerTimes, settings, isFriday = false }) => {
   const currentTime = useCurrentTime();
-  const [resolvedBgUrl, setResolvedBgUrl] = useState<string | null>(null);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryCountRef = useRef(0);
-  const objectUrlRef = useRef<string | null>(null);
+  const [bgReloadKey, setBgReloadKey] = useState(0);
 
   const nextPrayer = prayerTimes ? getNextPrayer(prayerTimes, settings, isFriday) : null;
   const isPortrait = settings.displayMode === 'portrait';
-
-  // حالة الاتصال تفاعلية
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
 
   // تحديد الخلفية الحالية — دائماً الخلفية المختارة
   const getCurrentBackground = () => {
@@ -52,74 +38,21 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
 
   const currentBackground = getCurrentBackground();
 
-  // حفظ الخلفية المختارة محلياً عند توفر الإنترنت
-  useEffect(() => {
-    if (isOnline && currentBackground) {
-      cacheSelectedBackground(currentBackground);
-    }
-  }, [isOnline, currentBackground?.id]);
+  // Service Worker يتكفّل بالتخزين والخدمة أوفلاين — نستخدم الرابط الأصلي مباشرة
+  const resolvedBgUrl = currentBackground?.url ?? null;
 
-  // حلّ رابط الخلفية: جرّب IndexedDB أولاً ثم الرابط الأصلي
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!currentBackground) {
-      setResolvedBgUrl(null);
-      return;
-    }
-
-    setResolvedBgUrl(null);
-
-    getCachedBlobUrl(currentBackground.id).then(blobUrl => {
-      if (cancelled) return;
-      if (blobUrl) {
-        if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-        objectUrlRef.current = blobUrl;
-        setResolvedBgUrl(blobUrl);
-      } else {
-        // جرّب الرابط الأصلي — Service Worker cache سيخدمه إن كان محفوظاً
-        setResolvedBgUrl(currentBackground.url);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentBackground?.id]);
-
-  // تنظيف object URL عند إزالة المكون
-  useEffect(() => {
-    return () => {
-      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-    };
-  }, []);
-
-  // معالج خطأ تحميل الخلفية — إعادة المحاولة بنفس الخلفية
+  // معالج خطأ تحميل الخلفية — إعادة المحاولة بتغيير مفتاح إعادة التحميل
   const handleBackgroundError = () => {
     if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     if (retryCountRef.current < 3) {
       retryCountRef.current += 1;
       retryTimerRef.current = setTimeout(() => {
-        setResolvedBgUrl(null);
-        if (currentBackground) {
-          getCachedBlobUrl(currentBackground.id).then(blobUrl => {
-            if (blobUrl) {
-              if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-              objectUrlRef.current = blobUrl;
-              setResolvedBgUrl(blobUrl);
-            } else {
-              setResolvedBgUrl(currentBackground.url);
-            }
-          });
-        }
+        setBgReloadKey(k => k + 1);
       }, 2000);
-    } else {
-      // بعد فشل كل المحاولات، أعد المحاولة بالرابط الأصلي
-      setResolvedBgUrl(currentBackground?.url || null);
     }
   };
 
-  // إعادة تعيين خطأ التحميل عند تغيير الخلفية الحالية
+  // إعادة تعيين عداد المحاولات عند تغيير الخلفية
   useEffect(() => {
     if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     retryCountRef.current = 0;
@@ -213,6 +146,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
       {currentBackground && resolvedBgUrl && (
         currentBackground.type === 'image' ? (
           <img
+            key={`${currentBackground.id}-${bgReloadKey}`}
             src={resolvedBgUrl}
             alt=""
             className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ${getObjectFitClass(currentBackground.objectFit)} ${getObjectPositionClass(currentBackground.objectPosition)}`}
@@ -220,6 +154,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
           />
         ) : (
           <video
+            key={`${currentBackground.id}-${bgReloadKey}`}
             className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ${getObjectFitClass(currentBackground.objectFit)} ${getObjectPositionClass(currentBackground.objectPosition)}`}
             src={resolvedBgUrl}
             autoPlay

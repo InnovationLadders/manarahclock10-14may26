@@ -1,4 +1,3 @@
-import { BackgroundItem } from '../types';
 
 const DB_NAME = 'manarah-bg-cache';
 const STORE_NAME = 'backgrounds';
@@ -91,26 +90,6 @@ export async function getCachedBackgroundIds(): Promise<Set<string>> {
   }
 }
 
-export async function clearAllCachedBackgrounds(): Promise<void> {
-  try {
-    const db = await openDB();
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    tx.objectStore(STORE_NAME).clear();
-    await new Promise<void>((resolve, reject) => {
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-    db.close();
-    console.log('backgroundCache: cleared all cached backgrounds');
-  } catch (e) {
-    console.warn('backgroundCache: could not clear cache:', e);
-  }
-}
-
-export async function cacheSelectedBackground(background: BackgroundItem): Promise<boolean> {
-  await clearAllCachedBackgrounds();
-  return cacheBackground(background.id, background.url);
-}
 
 export async function deleteCachedBackground(id: string): Promise<void> {
   try {
