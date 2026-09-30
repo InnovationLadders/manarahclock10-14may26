@@ -18,10 +18,13 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-export async function cacheBackground(id: string, url: string): Promise<void> {
+export async function cacheBackground(id: string, url: string): Promise<boolean> {
   try {
     const response = await fetch(url);
-    if (!response.ok) return;
+    if (!response.ok) {
+      console.warn(`backgroundCache: fetch failed for "${id}" (status ${response.status})`);
+      return false;
+    }
     const blob = await response.blob();
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -31,9 +34,11 @@ export async function cacheBackground(id: string, url: string): Promise<void> {
       tx.onerror = () => reject(tx.error);
     });
     db.close();
+    console.log(`backgroundCache: cached "${id}" successfully`);
+    return true;
   } catch (e) {
-    // Network failure or quota — silently skip
     console.warn(`backgroundCache: could not cache "${id}":`, e);
+    return false;
   }
 }
 
@@ -86,11 +91,25 @@ export async function getCachedBackgroundIds(): Promise<Set<string>> {
   }
 }
 
-export async function precacheBackgrounds(backgrounds: BackgroundItem[]): Promise<void> {
-  const cached = await getCachedBackgroundIds();
-  const toCache = backgrounds.filter(bg => !cached.has(bg.id));
-  if (toCache.length === 0) return;
-  await Promise.all(toCache.map(bg => cacheBackground(bg.id, bg.url)));
+export async function clearAllCachedBackgrounds(): Promise<void> {
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).clear();
+    await new Promise<void>((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+    console.log('backgroundCache: cleared all cached backgrounds');
+  } catch (e) {
+    console.warn('backgroundCache: could not clear cache:', e);
+  }
+}
+
+export async function cacheSelectedBackground(background: BackgroundItem): Promise<boolean> {
+  await clearAllCachedBackgrounds();
+  return cacheBackground(background.id, background.url);
 }
 
 export async function deleteCachedBackground(id: string): Promise<void> {

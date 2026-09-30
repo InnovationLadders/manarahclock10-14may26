@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { Settings as SettingsType, BackgroundItem, COUNTRIES, CALCULATION_METHODS, MADHABS, FONT_FAMILIES, getRecommendedCalculationMethod, getRecommendedMadhab, getRecommendedTimezone } from '../types';
 import { getSettings, saveSettings, uploadBackgroundImage, addBackgroundToSettings, removeBackgroundFromSettings, deleteBackgroundImage, updateUserPassword } from '../utils/storage';
-import { cacheBackground, deleteCachedBackground } from '../utils/backgroundCache';
+import { cacheSelectedBackground, deleteCachedBackground } from '../utils/backgroundCache';
 import LayoutColorSettings from './LayoutColorSettings';
 import LocationPicker from './LocationPicker';
 import { getCitiesByCountry, getCityCoordinates } from '../data/cities';
@@ -159,8 +159,15 @@ const Settings: React.FC<SettingsProps> = ({
         // حفظ الإعدادات النهائية
         await saveSettings(updatedSettings, user);
         
-        // حفظ الخلفية محلياً للعمل دون إنترنت
-        cacheBackground(uploadedBackground.id, uploadedBackground.url);
+        // حفظ الخلفية المختارة فقط محلياً للعمل دون إنترنت
+        cacheSelectedBackground({
+          id: uploadedBackground.id,
+          url: uploadedBackground.url,
+          type: uploadedBackground.type,
+          name: uploadedBackground.name,
+          objectFit: 'fill',
+          objectPosition: 'center'
+        });
         
         // إشعار المكون الأب بالتحديث
         onRefreshSettings();
@@ -965,7 +972,10 @@ const Settings: React.FC<SettingsProps> = ({
                       {/* طبقة تراكب مع الأزرار */}
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2">
                         <button
-                          onClick={() => updateSettings({ selectedBackgroundId: background.id })}
+                          onClick={() => {
+                            updateSettings({ selectedBackgroundId: background.id });
+                            cacheSelectedBackground(background);
+                          }}
                           className={`p-2 rounded-lg transition-all duration-300 ${
                             settings.selectedBackgroundId === background.id
                               ? 'bg-blue-500 text-white'

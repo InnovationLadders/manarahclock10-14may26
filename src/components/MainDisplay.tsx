@@ -7,7 +7,7 @@ import PrayerTimesBar from './PrayerTimesBar';
 import CountdownRectangle from './CountdownRectangle';
 import DuasPanel from './DuasPanel';
 import AnnouncementsPanel from './AnnouncementsPanel';
-import { getCachedBlobUrl, precacheBackgrounds, getCachedBackgroundIds } from '../utils/backgroundCache';
+import { getCachedBlobUrl, cacheSelectedBackground } from '../utils/backgroundCache';
 
 interface MainDisplayProps {
   user?: User | null;
@@ -20,10 +20,8 @@ interface MainDisplayProps {
 
 const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mosqueId, prayerTimes, settings, isFriday = false }) => {
   const currentTime = useCurrentTime();
-  const [currentBackgroundIndex, setCurrentBackgroundIndex] = useState(0);
-  const [backgroundLoadError, setBackgroundLoadError] = useState(false);
   const [resolvedBgUrl, setResolvedBgUrl] = useState<string | null>(null);
-  const [cachedIds, setCachedIds] = useState<Set<string>>(new Set());
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryCountRef = useRef(0);
   const objectUrlRef = useRef<string | null>(null);
@@ -31,61 +29,35 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
   const nextPrayer = prayerTimes ? getNextPrayer(prayerTimes, settings, isFriday) : null;
   const isPortrait = settings.displayMode === 'portrait';
 
-  // تحديد الخلفيات المتاحة — عند انقطاع الإنترنت نقتصر على المحفوظة محلياً
-  const isOffline = !navigator.onLine;
-  const availableBackgrounds = isOffline && cachedIds.size > 0
-    ? settings.backgrounds.filter(bg => cachedIds.has(bg.id))
-    : settings.backgrounds;
-
-  // تدوير الخلفيات تلقائياً — فقط بين الخلفيات المتاحة
+  // حالة الاتصال تفاعلية
   useEffect(() => {
-    if (settings.rotateBackgrounds && availableBackgrounds.length > 1) {
-      const interval = setInterval(() => {
-        setCurrentBackgroundIndex(prev =>
-          (prev + 1) % availableBackgrounds.length
-        );
-        setBackgroundLoadError(false);
-      }, settings.rotationInterval * 1000);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
-      return () => clearInterval(interval);
-    }
-  }, [settings.rotateBackgrounds, settings.rotationInterval, availableBackgrounds.length]);
-
-  // إعادة تعيين الفهرس إذا تجاوز النطاق
-  useEffect(() => {
-    if (currentBackgroundIndex >= availableBackgrounds.length) {
-      setCurrentBackgroundIndex(0);
-    }
-    setBackgroundLoadError(false);
-  }, [availableBackgrounds.length, currentBackgroundIndex]);
-
-  // تحديد الخلفية الحالية
+  // تحديد الخلفية الحالية — دائماً الخلفية المختارة
   const getCurrentBackground = () => {
-    if (availableBackgrounds.length === 0) return null;
-    if (settings.rotateBackgrounds) {
-      return availableBackgrounds[currentBackgroundIndex] || availableBackgrounds[0];
-    } else if (settings.selectedBackgroundId) {
-      const selectedBg = availableBackgrounds.find(bg => bg.id === settings.selectedBackgroundId);
-      return selectedBg || availableBackgrounds[0];
+    if (settings.selectedBackgroundId) {
+      const selectedBg = settings.backgrounds.find(bg => bg.id === settings.selectedBackgroundId);
+      if (selectedBg) return selectedBg;
     }
-    return availableBackgrounds[0];
+    return settings.backgrounds[0] || null;
   };
 
   const currentBackground = getCurrentBackground();
 
-  // تحديث قائمة الخلفيات المحفوظة عند تغيير الإعدادات
+  // حفظ الخلفية المختارة محلياً عند توفر الإنترنت
   useEffect(() => {
-    getCachedBackgroundIds().then(setCachedIds);
-  }, []);
-
-  // حفظ الخلفيات محلياً عند توفر الإنترنت
-  useEffect(() => {
-    if (!isOffline && settings.backgrounds.length > 0) {
-      precacheBackgrounds(settings.backgrounds).then(() => {
-        getCachedBackgroundIds().then(setCachedIds);
-      });
+    if (isOnline && currentBackground) {
+      cacheSelectedBackground(currentBackground);
     }
-  }, [isOffline, settings.backgrounds]);
+  }, [isOnline, currentBackground?.id]);
 
   // حلّ رابط الخلفية: جرّب IndexedDB أولاً ثم الرابط الأصلي
   useEffect(() => {
@@ -97,7 +69,6 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
     }
 
     setResolvedBgUrl(null);
-    setBackgroundLoadError(false);
 
     getCachedBlobUrl(currentBackground.id).then(blobUrl => {
       if (cancelled) return;
@@ -106,6 +77,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
         objectUrlRef.current = blobUrl;
         setResolvedBgUrl(blobUrl);
       } else {
+        // جرّب الرابط الأصلي — Service Worker cache سيخدمه إن كان محفوظاً
         setResolvedBgUrl(currentBackground.url);
       }
     });
@@ -122,15 +94,13 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
     };
   }, []);
 
-  // معالج خطأ تحميل الخلفية — إظهار الخلفية الاحتياطية فوراً
+  // معالج خطأ تحميل الخلفية — إعادة المحاولة بنفس الخلفية
   const handleBackgroundError = () => {
     if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-    if (retryCountRef.current < 2 && navigator.onLine) {
+    if (retryCountRef.current < 3) {
       retryCountRef.current += 1;
       retryTimerRef.current = setTimeout(() => {
-        setBackgroundLoadError(false);
         setResolvedBgUrl(null);
-        // أعد المحاولة بالرابط الأصلي (ربما انتهت صلاحية blob)
         if (currentBackground) {
           getCachedBlobUrl(currentBackground.id).then(blobUrl => {
             if (blobUrl) {
@@ -142,9 +112,10 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
             }
           });
         }
-      }, 5000);
+      }, 2000);
     } else {
-      setBackgroundLoadError(true);
+      // بعد فشل كل المحاولات، أعد المحاولة بالرابط الأصلي
+      setResolvedBgUrl(currentBackground?.url || null);
     }
   };
 
@@ -152,7 +123,6 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
   useEffect(() => {
     if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     retryCountRef.current = 0;
-    setBackgroundLoadError(false);
     return () => {
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     };
@@ -239,48 +209,33 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
     <div className={`h-full flex flex-col text-white relative ${
       isPortrait ? 'main-display-portrait' : ''
     }`}>
-      {/* الخلفية */}
-      {currentBackground && (
-        <>
-          {backgroundLoadError || !resolvedBgUrl ? (
-            // خلفية احتياطية عند فشل التحميل أو أثناء التحميل
-            <div className="absolute inset-0" style={{ background: 'linear-gradient(160deg, #0f2027 0%, #1a3a4a 40%, #0d1f2d 100%)' }} />
-          ) : currentBackground.type === 'image' ? (
-            <img
-              src={resolvedBgUrl}
-              alt=""
-              className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ${getObjectFitClass(currentBackground.objectFit)} ${getObjectPositionClass(currentBackground.objectPosition)}`}
-              onError={handleBackgroundError}
-              onLoad={() => setBackgroundLoadError(false)}
-            />
-          ) : (
-            <video
-              className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ${getObjectFitClass(currentBackground.objectFit)} ${getObjectPositionClass(currentBackground.objectPosition)}`}
-              src={resolvedBgUrl}
-              autoPlay
-              loop
-              muted
-              playsInline
-              preload="auto"
-              onLoadedData={() => {
-                setBackgroundLoadError(false);
-              }}
-              onError={handleBackgroundError}
-              onLoadStart={() => setBackgroundLoadError(false)}
-            />
-          )}
-        </>
-      )}
-      {!currentBackground && (
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(160deg, #0f2027 0%, #1a3a4a 40%, #0d1f2d 100%)' }} />
+      {/* الخلفية — دائماً الخلفية المختارة */}
+      {currentBackground && resolvedBgUrl && (
+        currentBackground.type === 'image' ? (
+          <img
+            src={resolvedBgUrl}
+            alt=""
+            className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ${getObjectFitClass(currentBackground.objectFit)} ${getObjectPositionClass(currentBackground.objectPosition)}`}
+            onError={handleBackgroundError}
+          />
+        ) : (
+          <video
+            className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ${getObjectFitClass(currentBackground.objectFit)} ${getObjectPositionClass(currentBackground.objectPosition)}`}
+            src={resolvedBgUrl}
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            onLoadedData={() => {}}
+            onError={handleBackgroundError}
+            onLoadStart={() => {}}
+          />
+        )
       )}
       
       {/* طبقة تراكب شفافة */}
-      <div className={`absolute inset-0 ${
-        backgroundLoadError 
-          ? 'bg-gradient-to-br from-black/80 via-black/60 to-black/80' 
-          : 'bg-gradient-to-br from-black/60 via-black/40 to-black/60'
-      }`} />
+      <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
 
       {/* الشعار في الزاوية العلوية اليمنى */}
       <div className="absolute top-4 right-4 z-50">
