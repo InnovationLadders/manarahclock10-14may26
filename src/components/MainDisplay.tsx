@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User } from 'firebase/auth';
 import { useCurrentTime } from '../hooks/useTime';
 import { getNextPrayer, formatCountdown, getHijriDate, getGregorianDate, formatCurrentTime } from '../utils/prayerCalculations';
@@ -7,6 +7,7 @@ import PrayerTimesBar from './PrayerTimesBar';
 import CountdownRectangle from './CountdownRectangle';
 import DuasPanel from './DuasPanel';
 import AnnouncementsPanel from './AnnouncementsPanel';
+import { getCachedBlobUrl, precacheBackgrounds, getCachedBackgroundIds } from '../utils/backgroundCache';
 
 interface MainDisplayProps {
   user?: User | null;
@@ -21,61 +22,126 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
   const currentTime = useCurrentTime();
   const [currentBackgroundIndex, setCurrentBackgroundIndex] = useState(0);
   const [backgroundLoadError, setBackgroundLoadError] = useState(false);
-  const retryTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const retryCountRef = React.useRef(0);
+  const [resolvedBgUrl, setResolvedBgUrl] = useState<string | null>(null);
+  const [cachedIds, setCachedIds] = useState<Set<string>>(new Set());
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const objectUrlRef = useRef<string | null>(null);
 
   const nextPrayer = prayerTimes ? getNextPrayer(prayerTimes, settings, isFriday) : null;
   const isPortrait = settings.displayMode === 'portrait';
-  
-  // تدوير الخلفيات تلقائياً
+
+  // تحديد الخلفيات المتاحة — عند انقطاع الإنترنت نقتصر على المحفوظة محلياً
+  const isOffline = !navigator.onLine;
+  const availableBackgrounds = isOffline && cachedIds.size > 0
+    ? settings.backgrounds.filter(bg => cachedIds.has(bg.id))
+    : settings.backgrounds;
+
+  // تدوير الخلفيات تلقائياً — فقط بين الخلفيات المتاحة
   useEffect(() => {
-    if (settings.rotateBackgrounds && settings.backgrounds.length > 1) {
+    if (settings.rotateBackgrounds && availableBackgrounds.length > 1) {
       const interval = setInterval(() => {
-        setCurrentBackgroundIndex(prev => 
-          (prev + 1) % settings.backgrounds.length
+        setCurrentBackgroundIndex(prev =>
+          (prev + 1) % availableBackgrounds.length
         );
-        // إعادة تعيين حالة خطأ التحميل عند تغيير الخلفية
         setBackgroundLoadError(false);
       }, settings.rotationInterval * 1000);
-      
+
       return () => clearInterval(interval);
     }
-  }, [settings.rotateBackgrounds, settings.rotationInterval, settings.backgrounds.length]);
-  
-  // إعادة تعيين الفهرس إذا تم تغيير الخلفيات
+  }, [settings.rotateBackgrounds, settings.rotationInterval, availableBackgrounds.length]);
+
+  // إعادة تعيين الفهرس إذا تجاوز النطاق
   useEffect(() => {
-    if (currentBackgroundIndex >= settings.backgrounds.length) {
+    if (currentBackgroundIndex >= availableBackgrounds.length) {
       setCurrentBackgroundIndex(0);
     }
-    // إعادة تعيين حالة خطأ التحميل عند تغيير قائمة الخلفيات
     setBackgroundLoadError(false);
-  }, [settings.backgrounds.length, currentBackgroundIndex]);
-  
+  }, [availableBackgrounds.length, currentBackgroundIndex]);
+
   // تحديد الخلفية الحالية
   const getCurrentBackground = () => {
+    if (availableBackgrounds.length === 0) return null;
     if (settings.rotateBackgrounds) {
-      return settings.backgrounds[currentBackgroundIndex];
+      return availableBackgrounds[currentBackgroundIndex] || availableBackgrounds[0];
     } else if (settings.selectedBackgroundId) {
-      const selectedBg = settings.backgrounds.find(bg => bg.id === settings.selectedBackgroundId);
-      return selectedBg || settings.backgrounds[0];
+      const selectedBg = availableBackgrounds.find(bg => bg.id === settings.selectedBackgroundId);
+      return selectedBg || availableBackgrounds[0];
     }
-    return settings.backgrounds[0];
+    return availableBackgrounds[0];
   };
-  
-  const currentBackground = getCurrentBackground();
-  
-  // معالج خطأ تحميل الخلفية — لا نُظهر الخطأ عند انقطاع الإنترنت
-  // لأن الصورة قد تكون محفوظة في ذاكرة المتصفح (Service Worker cache)
-  const handleBackgroundError = () => {
-    // إذا كان الجهاز غير متصل، لا نُظهر الخلفية الاحتياطية
-    // لأن الخطأ سببه انقطاع الشبكة وليس مشكلة في الصورة
-    if (!navigator.onLine) return;
 
-    if (retryCountRef.current < 3) {
+  const currentBackground = getCurrentBackground();
+
+  // تحديث قائمة الخلفيات المحفوظة عند تغيير الإعدادات
+  useEffect(() => {
+    getCachedBackgroundIds().then(setCachedIds);
+  }, []);
+
+  // حفظ الخلفيات محلياً عند توفر الإنترنت
+  useEffect(() => {
+    if (!isOffline && settings.backgrounds.length > 0) {
+      precacheBackgrounds(settings.backgrounds).then(() => {
+        getCachedBackgroundIds().then(setCachedIds);
+      });
+    }
+  }, [isOffline, settings.backgrounds]);
+
+  // حلّ رابط الخلفية: جرّب IndexedDB أولاً ثم الرابط الأصلي
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!currentBackground) {
+      setResolvedBgUrl(null);
+      return;
+    }
+
+    setResolvedBgUrl(null);
+    setBackgroundLoadError(false);
+
+    getCachedBlobUrl(currentBackground.id).then(blobUrl => {
+      if (cancelled) return;
+      if (blobUrl) {
+        if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = blobUrl;
+        setResolvedBgUrl(blobUrl);
+      } else {
+        setResolvedBgUrl(currentBackground.url);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentBackground?.id]);
+
+  // تنظيف object URL عند إزالة المكون
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    };
+  }, []);
+
+  // معالج خطأ تحميل الخلفية — إظهار الخلفية الاحتياطية فوراً
+  const handleBackgroundError = () => {
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    if (retryCountRef.current < 2 && navigator.onLine) {
       retryCountRef.current += 1;
       retryTimerRef.current = setTimeout(() => {
         setBackgroundLoadError(false);
-      }, 15000);
+        setResolvedBgUrl(null);
+        // أعد المحاولة بالرابط الأصلي (ربما انتهت صلاحية blob)
+        if (currentBackground) {
+          getCachedBlobUrl(currentBackground.id).then(blobUrl => {
+            if (blobUrl) {
+              if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+              objectUrlRef.current = blobUrl;
+              setResolvedBgUrl(blobUrl);
+            } else {
+              setResolvedBgUrl(currentBackground.url);
+            }
+          });
+        }
+      }, 5000);
     } else {
       setBackgroundLoadError(true);
     }
@@ -175,12 +241,12 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
       {/* الخلفية */}
       {currentBackground && (
         <>
-          {backgroundLoadError ? (
-            // خلفية احتياطية صامتة عند فشل التحميل
+          {backgroundLoadError || !resolvedBgUrl ? (
+            // خلفية احتياطية عند فشل التحميل أو أثناء التحميل
             <div className="absolute inset-0" style={{ background: 'linear-gradient(160deg, #0f2027 0%, #1a3a4a 40%, #0d1f2d 100%)' }} />
           ) : currentBackground.type === 'image' ? (
             <img
-              src={currentBackground.url}
+              src={resolvedBgUrl}
               alt=""
               className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ${getObjectFitClass(currentBackground.objectFit)} ${getObjectPositionClass(currentBackground.objectPosition)}`}
               onError={handleBackgroundError}
@@ -189,14 +255,13 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
           ) : (
             <video
               className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ${getObjectFitClass(currentBackground.objectFit)} ${getObjectPositionClass(currentBackground.objectPosition)}`}
-              src={currentBackground.url}
+              src={resolvedBgUrl}
               autoPlay
               loop
               muted
               playsInline
               preload="auto"
               onLoadedData={() => {
-                console.log('تم تحميل الفيديو بنجاح:', currentBackground.url);
                 setBackgroundLoadError(false);
               }}
               onError={handleBackgroundError}
@@ -204,6 +269,9 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
             />
           )}
         </>
+      )}
+      {!currentBackground && (
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(160deg, #0f2027 0%, #1a3a4a 40%, #0d1f2d 100%)' }} />
       )}
       
       {/* طبقة تراكب شفافة */}

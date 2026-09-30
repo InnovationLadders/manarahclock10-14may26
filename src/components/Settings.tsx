@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { Settings as SettingsType, BackgroundItem, COUNTRIES, CALCULATION_METHODS, MADHABS, FONT_FAMILIES, getRecommendedCalculationMethod, getRecommendedMadhab, getRecommendedTimezone } from '../types';
 import { getSettings, saveSettings, uploadBackgroundImage, addBackgroundToSettings, removeBackgroundFromSettings, deleteBackgroundImage, updateUserPassword } from '../utils/storage';
+import { cacheBackground, deleteCachedBackground } from '../utils/backgroundCache';
 import LayoutColorSettings from './LayoutColorSettings';
 import LocationPicker from './LocationPicker';
 import { getCitiesByCountry, getCityCoordinates } from '../data/cities';
@@ -158,6 +159,9 @@ const Settings: React.FC<SettingsProps> = ({
         // حفظ الإعدادات النهائية
         await saveSettings(updatedSettings, user);
         
+        // حفظ الخلفية محلياً للعمل دون إنترنت
+        cacheBackground(uploadedBackground.id, uploadedBackground.url);
+        
         // إشعار المكون الأب بالتحديث
         onRefreshSettings();
       }
@@ -194,6 +198,7 @@ const Settings: React.FC<SettingsProps> = ({
 
     try {
       await deleteBackgroundImage(backgroundId, user);
+      deleteCachedBackground(backgroundId);
 
       if (settings) {
         // حذف الخلفية من الإعدادات المحلية

@@ -1,0 +1,19 @@
+# robots.txt for ساعة منارة للمساجد
+# https://manarahclock.net/robots.txt
+
+User-agent: *
+Allow: /
+Allow: /display
+Allow: /mosque/
+
+Disallow: /admin-panel
+Disallow: /admin-login
+Disallow: /admin
+
+# Sitemaps
+Sitemap: https://manarahclock.net/sitemap-index.xml
+Sitemap: https://manarahclock.net/sitemap-static.xml
+Sitemap: https://manarahclock.net/sitemap-mosques.xml
+
+# Crawl-delay for respectful crawling
+Crawl-delay: 1
