@@ -42,25 +42,32 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
   const currentBackground = getCurrentBackground();
   const currentBgId = currentBackground?.id;
   const currentBgRemoteUrl = currentBackground?.url;
+  const defaultBgUrl = settings.backgrounds.find(bg => bg.id === (isPortrait ? 'default-v' : 'default-h'))?.url ?? null;
 
-  // نسخة محلية من الخلفية تُعرض أولاً، فتبقى ظاهرة عند انقطاع الإنترنت
+  // نسخة محلية من الخلفية تُعرض أولاً، وعند عدم توفرها والإنترنت مقطوع تُعرض الافتراضية
   useEffect(() => {
     if (!currentBgId || !currentBgRemoteUrl) {
-      setDisplayBgUrl(null);
+      setDisplayBgUrl(defaultBgUrl);
       return;
     }
     let cancelled = false;
     let localUrl: string | null = null;
     const loadBackground = async () => {
-      const cachedUrl = await getCachedBlobUrl(currentBgId);
+      const cachedUrl = await getCachedBlobUrl(currentBgId, currentBgRemoteUrl);
       if (cancelled) {
         if (cachedUrl) URL.revokeObjectURL(cachedUrl);
         return;
       }
       localUrl = cachedUrl;
-      setDisplayBgUrl(cachedUrl ?? currentBgRemoteUrl);
-      if (!cachedUrl && navigator.onLine) {
+      if (cachedUrl) {
+        setDisplayBgUrl(cachedUrl);
+        return;
+      }
+      if (navigator.onLine) {
+        setDisplayBgUrl(currentBgRemoteUrl);
         await cacheBackground(currentBgId, currentBgRemoteUrl);
+      } else {
+        setDisplayBgUrl(defaultBgUrl);
       }
     };
     loadBackground();
@@ -68,9 +75,9 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
       cancelled = true;
       if (localUrl) URL.revokeObjectURL(localUrl);
     };
-  }, [currentBgId, currentBgRemoteUrl]);
+  }, [currentBgId, currentBgRemoteUrl, defaultBgUrl]);
 
-  // معالج خطأ تحميل الخلفية — إعادة المحاولة بتغيير مفتاح إعادة التحميل
+  // معالج خطأ تحميل الخلفية — إعادة المحاولة ثم الانتقال إلى الافتراضية
   const handleBackgroundError = () => {
     if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     if (retryCountRef.current < 3) {
@@ -78,6 +85,8 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
       retryTimerRef.current = setTimeout(() => {
         setBgReloadKey(k => k + 1);
       }, 2000);
+    } else if (defaultBgUrl && displayBgUrl !== defaultBgUrl) {
+      setDisplayBgUrl(defaultBgUrl);
     }
   };
 

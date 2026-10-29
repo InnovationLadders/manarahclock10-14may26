@@ -588,11 +588,30 @@ export const uploadBackgroundImage = async (
       name: file.name
     };
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('💥 خطأ في رفع الصورة:', error);
-    throw new Error('فشل في رفع الصورة. يرجى المحاولة مرة أخرى.');
+    throw new Error(getUploadErrorMessage(error));
   }
 };
+
+const getUploadErrorMessage = (error: any): string => {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return 'لا يوجد اتصال بالإنترنت. تحقق من الشبكة ثم أعد المحاولة.';
+  }
+  switch (error?.code) {
+    case 'storage/unauthorized':
+      return 'ليست لديك صلاحية لرفع الصور. يرجى تسجيل الخروج ثم الدخول مرة أخرى.';
+    case 'storage/quota-exceeded':
+      return 'مساحة التخزين ممتلئة. يرجى التواصل مع الدعم.';
+    case 'storage/retry-limit-exceeded':
+      return 'انقطع الاتصال أثناء الرفع. يرجى المحاولة مرة أخرى.';
+    case 'storage/canceled':
+      return 'تم إلغاء الرفع.';
+    default:
+      return 'فشل في رفع الصورة. يرجى المحاولة مرة أخرى.';
+  }
+};
+
 
 // حذف صورة خلفية من Firebase Storage
 export const deleteBackgroundImage = async (

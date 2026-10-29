@@ -3,6 +3,8 @@ const DB_NAME = 'manarah-bg-cache';
 const STORE_NAME = 'backgrounds';
 const DB_VERSION = 1;
 
+type CachedBackground = { url: string; blob: Blob };
+
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -27,13 +29,13 @@ export async function cacheBackground(id: string, url: string): Promise<boolean>
     const blob = await response.blob();
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, 'readwrite');
-    tx.objectStore(STORE_NAME).put(blob, id);
+    const record: CachedBackground = { url, blob };
+    tx.objectStore(STORE_NAME).put(record, id);
     await new Promise<void>((resolve, reject) => {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
     db.close();
-    console.log(`backgroundCache: cached "${id}" successfully`);
     return true;
   } catch (e) {
     console.warn(`backgroundCache: could not cache "${id}":`, e);
@@ -41,17 +43,17 @@ export async function cacheBackground(id: string, url: string): Promise<boolean>
   }
 }
 
-export async function getCachedBlobUrl(id: string): Promise<string | null> {
+export async function getCachedBlobUrl(id: string, url: string): Promise<string | null> {
   try {
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, 'readonly');
     const request = tx.objectStore(STORE_NAME).get(id);
-    const blob = await new Promise<Blob | undefined>((resolve, reject) => {
-      request.onsuccess = () => resolve(request.result as Blob | undefined);
+    const record = await new Promise<CachedBackground | undefined>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result as CachedBackground | undefined);
       request.onerror = () => reject(request.error);
     });
     db.close();
-    if (blob) return URL.createObjectURL(blob);
+    if (record && record.url === url && record.blob) return URL.createObjectURL(record.blob);
     return null;
   } catch {
     return null;
