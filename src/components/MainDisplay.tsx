@@ -7,6 +7,7 @@ import PrayerTimesBar from './PrayerTimesBar';
 import CountdownRectangle from './CountdownRectangle';
 import DuasPanel from './DuasPanel';
 import AnnouncementsPanel from './AnnouncementsPanel';
+import { cacheBackground, getCachedBlobUrl } from '../utils/backgroundCache';
 
 
 interface MainDisplayProps {
@@ -23,23 +24,51 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryCountRef = useRef(0);
   const [bgReloadKey, setBgReloadKey] = useState(0);
+  const [displayBgUrl, setDisplayBgUrl] = useState<string | null>(null);
 
   const nextPrayer = prayerTimes ? getNextPrayer(prayerTimes, settings, isFriday) : null;
   const isPortrait = settings.displayMode === 'portrait';
 
-  // تحديد الخلفية الحالية — دائماً الخلفية المختارة
+  // الخلفية المختارة، وإن لم توجد فالافتراضية حسب اتجاه الشاشة
   const getCurrentBackground = () => {
     if (settings.selectedBackgroundId) {
       const selectedBg = settings.backgrounds.find(bg => bg.id === settings.selectedBackgroundId);
       if (selectedBg) return selectedBg;
     }
-    return settings.backgrounds[0] || null;
+    const defaultId = isPortrait ? 'default-v' : 'default-h';
+    return settings.backgrounds.find(bg => bg.id === defaultId) || settings.backgrounds[0] || null;
   };
 
   const currentBackground = getCurrentBackground();
+  const currentBgId = currentBackground?.id;
+  const currentBgRemoteUrl = currentBackground?.url;
 
-  // Service Worker يتكفّل بالتخزين والخدمة أوفلاين — نستخدم الرابط الأصلي مباشرة
-  const resolvedBgUrl = currentBackground?.url ?? null;
+  // نسخة محلية من الخلفية تُعرض أولاً، فتبقى ظاهرة عند انقطاع الإنترنت
+  useEffect(() => {
+    if (!currentBgId || !currentBgRemoteUrl) {
+      setDisplayBgUrl(null);
+      return;
+    }
+    let cancelled = false;
+    let localUrl: string | null = null;
+    const loadBackground = async () => {
+      const cachedUrl = await getCachedBlobUrl(currentBgId);
+      if (cancelled) {
+        if (cachedUrl) URL.revokeObjectURL(cachedUrl);
+        return;
+      }
+      localUrl = cachedUrl;
+      setDisplayBgUrl(cachedUrl ?? currentBgRemoteUrl);
+      if (!cachedUrl && navigator.onLine) {
+        await cacheBackground(currentBgId, currentBgRemoteUrl);
+      }
+    };
+    loadBackground();
+    return () => {
+      cancelled = true;
+      if (localUrl) URL.revokeObjectURL(localUrl);
+    };
+  }, [currentBgId, currentBgRemoteUrl]);
 
   // معالج خطأ تحميل الخلفية — إعادة المحاولة بتغيير مفتاح إعادة التحميل
   const handleBackgroundError = () => {
@@ -143,11 +172,11 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
       isPortrait ? 'main-display-portrait' : ''
     }`}>
       {/* الخلفية — دائماً الخلفية المختارة */}
-      {currentBackground && resolvedBgUrl && (
+      {currentBackground && displayBgUrl && (
         currentBackground.type === 'image' ? (
           <img
             key={`${currentBackground.id}-${bgReloadKey}`}
-            src={resolvedBgUrl}
+            src={displayBgUrl}
             alt=""
             className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ${getObjectFitClass(currentBackground.objectFit)} ${getObjectPositionClass(currentBackground.objectPosition)}`}
             onError={handleBackgroundError}
@@ -156,7 +185,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
           <video
             key={`${currentBackground.id}-${bgReloadKey}`}
             className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ${getObjectFitClass(currentBackground.objectFit)} ${getObjectPositionClass(currentBackground.objectPosition)}`}
-            src={resolvedBgUrl}
+            src={displayBgUrl}
             autoPlay
             loop
             muted

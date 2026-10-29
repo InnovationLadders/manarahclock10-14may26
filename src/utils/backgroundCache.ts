@@ -58,39 +58,6 @@ export async function getCachedBlobUrl(id: string): Promise<string | null> {
   }
 }
 
-export async function isBackgroundCached(id: string): Promise<boolean> {
-  try {
-    const db = await openDB();
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const countReq = tx.objectStore(STORE_NAME).count(id);
-    const count = await new Promise<number>((resolve, reject) => {
-      countReq.onsuccess = () => resolve(countReq.result);
-      countReq.onerror = () => reject(countReq.error);
-    });
-    db.close();
-    return count > 0;
-  } catch {
-    return false;
-  }
-}
-
-export async function getCachedBackgroundIds(): Promise<Set<string>> {
-  try {
-    const db = await openDB();
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const keysReq = tx.objectStore(STORE_NAME).getAllKeys();
-    const keys = await new Promise<IDBValidKey[]>((resolve, reject) => {
-      keysReq.onsuccess = () => resolve(keysReq.result);
-      keysReq.onerror = () => reject(keysReq.error);
-    });
-    db.close();
-    return new Set(keys.map(k => String(k)));
-  } catch {
-    return new Set();
-  }
-}
-
-
 export async function deleteCachedBackground(id: string): Promise<void> {
   try {
     const db = await openDB();

@@ -22,66 +22,18 @@ export const DEFAULT_SETTINGS: Settings = {
   madhab: 'Shafi',
   backgrounds: [
     {
-      id: 'default-h1',
-      url: '/backgrounds/horizontal-1.jpg',
+      id: 'default-v',
+      url: '/backgrounds/V.jpg',
       type: 'image',
-      name: 'إسلامي أزرق',
+      name: 'خلفية عمودية',
       objectFit: 'fill',
       objectPosition: 'center'
     },
     {
-      id: 'default-h3',
-      url: '/backgrounds/horizontal-3.jpg',
+      id: 'default-h',
+      url: '/backgrounds/H.jpg',
       type: 'image',
-      name: 'غروب',
-      objectFit: 'fill',
-      objectPosition: 'center'
-    },
-    {
-      id: 'default-v1',
-      url: '/backgrounds/vertical-1.jpg',
-      type: 'image',
-      name: 'عمودي أحمر',
-      objectFit: 'fill',
-      objectPosition: 'center'
-    },
-    {
-      id: 'default-v2',
-      url: '/backgrounds/vertical-2.jpg',
-      type: 'image',
-      name: 'عمودي أخضر',
-      objectFit: 'fill',
-      objectPosition: 'center'
-    },
-    {
-      id: 'default-v3',
-      url: '/backgrounds/vertical-3.png',
-      type: 'image',
-      name: 'عمودي بيج',
-      objectFit: 'fill',
-      objectPosition: 'center'
-    },
-    {
-      id: 'default-v4',
-      url: '/backgrounds/vertical-4.jpg',
-      type: 'image',
-      name: 'عمودي كحلي',
-      objectFit: 'fill',
-      objectPosition: 'center'
-    },
-    {
-      id: 'default-r1',
-      url: '/backgrounds/ROTAT-1.jpg',
-      type: 'image',
-      name: 'دوار فيروزي',
-      objectFit: 'fill',
-      objectPosition: 'center'
-    },
-    {
-      id: 'default-r2',
-      url: '/backgrounds/ROTAT-2.jpg',
-      type: 'image',
-      name: 'دوار إسلامي',
+      name: 'خلفية أفقية',
       objectFit: 'fill',
       objectPosition: 'center'
     }
@@ -267,6 +219,17 @@ const deepMerge = (target: any, source: any): any => {
   return result;
 };
 
+// دمج الإعدادات المحفوظة مع الافتراضية وتنظيف الخلفيات الافتراضية القديمة
+const normalizeSettings = (raw: any): Settings => {
+  const merged = deepMerge(DEFAULT_SETTINGS, raw) as Settings;
+  const customBackgrounds = merged.backgrounds.filter(bg => !bg.id.startsWith('default-'));
+  const backgrounds = [...DEFAULT_SETTINGS.backgrounds, ...customBackgrounds];
+  const selectedBackgroundId = backgrounds.some(bg => bg.id === merged.selectedBackgroundId)
+    ? merged.selectedBackgroundId
+    : null;
+  return { ...merged, backgrounds, selectedBackgroundId };
+};
+
 // جلب الإعدادات من التخزين المحلي
 const getLocalSettings = (mosqueId?: string): Settings => {
   try {
@@ -274,7 +237,7 @@ const getLocalSettings = (mosqueId?: string): Settings => {
     const stored = localStorage.getItem(storageKey);
     if (stored) {
       const parsedSettings = JSON.parse(stored);
-      return deepMerge(DEFAULT_SETTINGS, parsedSettings);
+      return normalizeSettings(parsedSettings);
     }
   } catch (error) {
     console.warn(`خطأ في قراءة الإعدادات المحلية${mosqueId ? ` للمسجد ${mosqueId}` : ''}:`, error);
@@ -301,8 +264,7 @@ const getFirestoreSettings = async (user: User): Promise<Settings | null> => {
     const docSnap = await getDoc(docRef);
     
     if (docSnap.exists()) {
-      const firestoreData = docSnap.data() as Settings;
-      return deepMerge(DEFAULT_SETTINGS, firestoreData);
+      return normalizeSettings(docSnap.data());
     }
     
     return null;
@@ -319,8 +281,7 @@ const getFirestoreSettingsById = async (mosqueId: string): Promise<Settings | nu
     const docSnap = await getDoc(docRef);
     
     if (docSnap.exists()) {
-      const firestoreData = docSnap.data() as Settings;
-      return deepMerge(DEFAULT_SETTINGS, firestoreData);
+      return normalizeSettings(docSnap.data());
     }
     
     return null;
@@ -582,7 +543,7 @@ export const subscribeToSettings = (
   const docRef = doc(db, 'mosques', uid);
   return onSnapshot(docRef, (snap) => {
     if (snap.exists()) {
-      const updated = deepMerge(DEFAULT_SETTINGS, snap.data()) as Settings;
+      const updated = normalizeSettings(snap.data());
       saveLocalSettings(updated, uid);
       onUpdate(updated);
     }
