@@ -60,6 +60,12 @@ export async function getCachedBlobUrl(id: string, url: string): Promise<string 
   }
 }
 
+export async function hasCachedBackground(id: string, url: string): Promise<boolean> {
+  const blobUrl = await getCachedBlobUrl(id, url);
+  if (blobUrl) URL.revokeObjectURL(blobUrl);
+  return !!blobUrl;
+}
+
 export async function deleteCachedBackground(id: string): Promise<void> {
   try {
     const db = await openDB();

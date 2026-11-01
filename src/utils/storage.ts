@@ -602,7 +602,7 @@ const getUploadErrorMessage = (error: any): string => {
     case 'storage/unauthorized':
       return 'ليست لديك صلاحية لرفع الصور. يرجى تسجيل الخروج ثم الدخول مرة أخرى.';
     case 'storage/quota-exceeded':
-      return 'مساحة التخزين ممتلئة. يرجى التواصل مع الدعم.';
+      return 'تعذر حفظ الصورة لأن حد التخزين في حساب الخدمة مُمتلئ. يرجى التواصل مع الدعم مع ذكر الرمز: STORAGE_QUOTA.';
     case 'storage/retry-limit-exceeded':
       return 'انقطع الاتصال أثناء الرفع. يرجى المحاولة مرة أخرى.';
     case 'storage/canceled':

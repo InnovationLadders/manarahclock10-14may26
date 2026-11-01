@@ -29,15 +29,13 @@ const isMobileDevice = () => {
     || window.innerWidth < 1024;
 };
 
-const isTouchDevice = () =>
-  typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
-
 const MainApp: React.FC = () => {
   const [searchParams] = useSearchParams();
   const params = useParams();
   const navigate = useNavigate();
   const [showSettings, setShowSettings] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [installHelpOpen, setInstallHelpOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [userIsAdmin, setUserIsAdmin] = useState(false);
@@ -92,13 +90,15 @@ const MainApp: React.FC = () => {
     };
   }, []);
 
+  const { prayerTimes, settings, isFriday, mosqueFound, refreshSettings, loading } = usePrayerTimes(user, mosqueId || undefined);
+
   // manifest ديناميكي مرتبط برابط المسجد المحدد
   useEffect(() => {
     if (!mosqueId) return;
     const startUrl = `${window.location.origin}/mosque/${mosqueId}`;
     const manifest = {
-      name: 'ساعة منارة - ساعة المسجد الذكية لأوقات الصلاة',
-      short_name: 'ساعة منارة',
+      name: `${settings.mosqueName} - ساعة منارة`,
+      short_name: settings.mosqueName,
       description: 'ساعة منارة - ساعة المسجد الذكية والتلفزيونية لعرض أوقات الصلاة',
       theme_color: '#059669',
       background_color: '#0f2027',
@@ -130,10 +130,8 @@ const MainApp: React.FC = () => {
       URL.revokeObjectURL(url);
       if (link) link.href = prev;
     };
-  }, [mosqueId]);
+  }, [mosqueId, settings.mosqueName]);
   
-  const { prayerTimes, settings, isFriday, mosqueFound, refreshSettings, loading } = usePrayerTimes(user, mosqueId || undefined);
-
   // تحديد حالة الشاشة التلقائية
   const automaticScreenState = (prayerTimes && settings) ? getScreenState(prayerTimes, settings, isFriday) : { state: 'mainDisplay' as const };
   
@@ -223,6 +221,14 @@ const MainApp: React.FC = () => {
     }
     setShowControls(true);
     hideTimer.current = setTimeout(() => setShowControls(false), 5000);
+  };
+
+  const handleInstallClick = () => {
+    if (canInstall) {
+      triggerInstall();
+    } else {
+      setInstallHelpOpen(true);
+    }
   };
 
   const handleSettingsClick = () => {
@@ -378,7 +384,6 @@ const MainApp: React.FC = () => {
   }
 
   const isMobile = isMobileDevice();
-  const isTouch = isTouchDevice();
 
   // يعيد أبعاد وتحويلات حاوية شاشة التلفزيون لمحاكاتها على الجوال
   const getTVCanvasStyle = (): React.CSSProperties => {
@@ -522,19 +527,6 @@ const MainApp: React.FC = () => {
           )}
         </button>
 
-        {/* زر تثبيت التطبيق على سطح المكتب (يخضع لمنطق الإخفاء) */}
-        {canInstall && !isInstalled && !isTouch && (
-          <button
-            onClick={() => triggerInstall()}
-            className={`p-3 bg-emerald-600/40 hover:bg-emerald-600/70 backdrop-blur-sm rounded-full border border-emerald-400/40 transition-all duration-300 ${
-              isPortrait ? 'rotate-90' : ''
-            }`}
-            title="تثبيت التطبيق على الجهاز"
-          >
-            <Download className={`w-6 h-6 text-white ${isPortrait ? '-rotate-90' : ''}`} />
-          </button>
-        )}
-
         {/* زر الإعدادات */}
         <button
           onClick={handleSettingsClick}
@@ -547,16 +539,45 @@ const MainApp: React.FC = () => {
         </button>
       </div>
 
-      {/* زر تثبيت التطبيق على الجوال — دائم الظهور في أسفل الشاشة */}
-      {canInstall && !isInstalled && isTouch && (
+      {mosqueId && !isInstalled && (
         <button
-          onClick={() => triggerInstall()}
+          onClick={handleInstallClick}
           className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-6 py-3 bg-emerald-600/80 hover:bg-emerald-600 backdrop-blur-md rounded-2xl border border-emerald-400/50 shadow-2xl transition-all duration-300 text-white"
           style={{ fontFamily: 'Cairo, sans-serif' }}
         >
           <Download className="w-5 h-5 shrink-0" />
-          <span className="font-semibold text-sm">ثبّت التطبيق على جهازك</span>
+          <span className="font-semibold text-sm">تنزيل تطبيق المسجد</span>
         </button>
+      )}
+
+      {installHelpOpen && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-6"
+          onClick={() => setInstallHelpOpen(false)}
+        >
+          <div
+            className="bg-gray-900 border border-white/15 rounded-2xl p-6 max-w-md w-full text-white text-right space-y-4"
+            style={{ fontFamily: 'Cairo, sans-serif' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold">تنزيل تطبيق المسجد</h3>
+              <button
+                onClick={() => setInstallHelpOpen(false)}
+                className="p-1 hover:bg-white/10 rounded-full"
+                aria-label="إغلاق"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-white/70 text-sm leading-relaxed">
+              على الآيفون: اضغط زر المشاركة ثم "إضافة إلى الشاشة الرئيسية".
+            </p>
+            <p className="text-white/70 text-sm leading-relaxed">
+              على الأندرويد أو الكمبيوتر: افتح قائمة المتصفح ثم اختر "تثبيت التطبيق".
+            </p>
+          </div>
+        </div>
       )}
     </>
   );

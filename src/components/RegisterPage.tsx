@@ -5,7 +5,7 @@ import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail
 } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, collection, getDocs, query, where, limit, runTransaction } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { DEFAULT_SETTINGS } from '../utils/storage';
 import { COUNTRIES, COUNTRY_CALCULATION_METHOD_MAP, COUNTRY_MADHAB_MAP } from '../types';
@@ -21,6 +21,9 @@ const RegisterPage: React.FC = () => {
   const [error, setError] = useState('');
 
   const [displayMode, setDisplayMode] = useState<'landscape' | 'portrait'>('landscape');
+  const [screenType, setScreenType] = useState<'prayerTimes' | 'dawahScreen'>('dawahScreen');
+  const [activationCode, setActivationCode] = useState('');
+  const [activated, setActivated] = useState(false);
   const [mosqueName, setMosqueName] = useState('');
   const [country, setCountry] = useState('المملكة العربية السعودية');
   const [city, setCity] = useState('');
@@ -62,8 +65,21 @@ const RegisterPage: React.FC = () => {
       setError('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
       return;
     }
+    const code = activationCode.trim().toUpperCase();
     setLoading(true);
     try {
+      let codeRef = null;
+      if (code) {
+        const codeSnap = await getDocs(
+          query(collection(db, 'activation_codes'), where('code', '==', code), where('status', '==', 'available'), limit(1))
+        );
+        codeRef = codeSnap.docs[0]?.ref ?? null;
+        if (!codeRef) {
+          setError('رمز التفعيل غير صحيح أو تم استخدامه من قبل');
+          return;
+        }
+      }
+
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       const uid = cred.user.uid;
 
@@ -76,17 +92,33 @@ const RegisterPage: React.FC = () => {
         location: { latitude, longitude, city, country },
         email,
         displayMode,
+        screenType,
         calculationMethod: calcMethod,
         madhab,
         createdAt: serverTimestamp(),
         isActive: true,
-        accountStatus: 'trial',
-        trialStartedAt: serverTimestamp()
+        accountStatus: codeRef ? 'active' : 'trial',
+        ...(codeRef ? { activationCode: code } : { trialStartedAt: serverTimestamp() })
       };
 
-      await setDoc(doc(db, 'mosques', uid), mosqueData);
+      const mosqueRef = doc(db, 'mosques', uid);
+      if (codeRef) {
+        await runTransaction(db, async (tx) => {
+          const fresh = await tx.get(codeRef);
+          if (fresh.data()?.status !== 'available') throw new Error('CODE_USED');
+          tx.update(codeRef, { status: 'used', usedBy: uid, usedAt: serverTimestamp() });
+          tx.set(mosqueRef, mosqueData);
+        });
+        setActivated(true);
+      } else {
+        await setDoc(mosqueRef, mosqueData);
+      }
       setStep('done');
     } catch (err: any) {
+      if (err.message === 'CODE_USED') {
+        setError('هذا الرمز تم استخدامه للتو، يرجى إدخال رمز آخر');
+        return;
+      }
       switch (err.code) {
         case 'auth/email-already-in-use':
           setError('هذا البريد الإلكتروني مستخدم بالفعل');
@@ -232,6 +264,33 @@ const RegisterPage: React.FC = () => {
                 </button>
               </div>
 
+              <div>
+                <h2 className="text-xl font-bold text-white mb-1">ماذا ستعرض الشاشة؟</h2>
+                <p className="text-white/50 text-sm">يمكن تغيير هذا لاحقاً من الإعدادات</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {([
+                  { value: 'prayerTimes', title: 'مواقيت الصلاة', hint: 'أوقات الصلاة والأذان' },
+                  { value: 'dawahScreen', title: 'دعوية', hint: 'الأدعية والمحتوى الدعوي' }
+                ] as const).map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setScreenType(option.value)}
+                    className={`p-4 rounded-2xl border-2 transition-all duration-200 text-center ${
+                      screenType === option.value
+                        ? 'border-emerald-400 bg-emerald-500/15'
+                        : 'border-white/15 bg-white/5 hover:bg-white/10'
+                    }`}
+                  >
+                    <p className={`font-bold text-sm ${screenType === option.value ? 'text-emerald-300' : 'text-white/70'}`}>
+                      {option.title}
+                    </p>
+                    <p className="text-white/40 text-xs mt-0.5">{option.hint}</p>
+                  </button>
+                ))}
+              </div>
+
               <button
                 onClick={() => setStep('info')}
                 className="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
@@ -330,6 +389,21 @@ const RegisterPage: React.FC = () => {
               <h2 className="text-xl font-bold text-white">بيانات الحساب</h2>
 
               <div>
+                <label className={labelClass}>رمز التفعيل</label>
+                <input
+                  type="text"
+                  value={activationCode}
+                  onChange={(e) => setActivationCode(e.target.value)}
+                  className={inputClass + ' tracking-widest'}
+                  placeholder="XXXX-XXXX"
+                  dir="ltr"
+                />
+                {!activationCode.trim() && (
+                  <p className="text-white/40 text-xs mt-2 text-center">أو البدء بالتجربة 3 أيام</p>
+                )}
+              </div>
+
+              <div>
                 <label className={labelClass}>البريد الإلكتروني</label>
                 <input
                   type="email"
@@ -383,7 +457,7 @@ const RegisterPage: React.FC = () => {
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
                     <>
-                      <span>إنشاء الحساب</span>
+                      <span>{activationCode.trim() ? 'تفعيل وإنشاء الحساب' : 'البدء بالتجربة المجانية'}</span>
                       <CheckCircle className="w-4 h-4" />
                     </>
                   )}
@@ -403,7 +477,7 @@ const RegisterPage: React.FC = () => {
                   مرحباً بك في منارة!
                 </h2>
                 <p className="text-white/60">
-                  تم إنشاء حساب مسجدك. لديك 3 أيام تجربة مجانية.
+                  {activated ? 'تم تفعيل حساب مسجدك بنجاح.' : 'تم إنشاء حساب مسجدك. لديك 3 أيام تجربة مجانية.'}
                 </p>
               </div>
               <button

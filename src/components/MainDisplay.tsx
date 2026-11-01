@@ -7,7 +7,7 @@ import PrayerTimesBar from './PrayerTimesBar';
 import CountdownRectangle from './CountdownRectangle';
 import DuasPanel from './DuasPanel';
 import AnnouncementsPanel from './AnnouncementsPanel';
-import { cacheBackground, getCachedBlobUrl } from '../utils/backgroundCache';
+import { cacheBackground, getCachedBlobUrl, hasCachedBackground } from '../utils/backgroundCache';
 
 
 interface MainDisplayProps {
@@ -76,6 +76,18 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ user, mosqueFound = true, mos
       if (localUrl) URL.revokeObjectURL(localUrl);
     };
   }, [currentBgId, currentBgRemoteUrl, defaultBgUrl]);
+
+  // تنزيل كل خلفيات المسجد محلياً أثناء الاتصال حتى تعمل الشاشة بدون إنترنت لاحقاً
+  useEffect(() => {
+    if (!navigator.onLine) return;
+    settings.backgrounds
+      .filter((bg) => bg.url.startsWith('https://'))
+      .forEach(async (bg) => {
+        if (!(await hasCachedBackground(bg.id, bg.url))) {
+          await cacheBackground(bg.id, bg.url);
+        }
+      });
+  }, [settings.backgrounds]);
 
   // معالج خطأ تحميل الخلفية — إعادة المحاولة ثم الانتقال إلى الافتراضية
   const handleBackgroundError = () => {
