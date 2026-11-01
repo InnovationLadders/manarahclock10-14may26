@@ -11,9 +11,8 @@ import Login from './components/Login';
 import PrayerInProgressScreen from './components/PrayerInProgressScreen';
 import PostPrayerDhikrScreen from './components/PostPrayerDhikrScreen';
 import { usePWAUpdate } from './hooks/usePWAUpdate';
-import { usePWAInstall } from './hooks/usePWAInstall';
 import { checkAdminStatus } from './utils/adminUtils';
-import { Settings as SettingsIcon, Maximize, Minimize, Download, Clock, AlertTriangle, X } from 'lucide-react';
+import { Settings as SettingsIcon, Maximize, Minimize, Clock, AlertTriangle, X } from 'lucide-react';
 import { detectClockReset, getSyncSource, recordDeviceTime } from './utils/timeCorrection';
 
 const MosquesLandingPage = lazy(() => import('./components/MosquesLandingPage'));
@@ -35,13 +34,11 @@ const MainApp: React.FC = () => {
   const navigate = useNavigate();
   const [showSettings, setShowSettings] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
-  const [installHelpOpen, setInstallHelpOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [userIsAdmin, setUserIsAdmin] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const { updateAvailable, reloadApp, clearCache } = usePWAUpdate();
-  const { canInstall, isInstalled, triggerInstall } = usePWAInstall();
   const [showControls, setShowControls] = useState(true);
   const [manualScreenOverride, setManualScreenOverride] = useState<'mainDisplay' | null>(null);
   const [showClockWarning, setShowClockWarning] = useState(false);
@@ -221,14 +218,6 @@ const MainApp: React.FC = () => {
     }
     setShowControls(true);
     hideTimer.current = setTimeout(() => setShowControls(false), 5000);
-  };
-
-  const handleInstallClick = () => {
-    if (canInstall) {
-      triggerInstall();
-    } else {
-      setInstallHelpOpen(true);
-    }
   };
 
   const handleSettingsClick = () => {
@@ -538,47 +527,6 @@ const MainApp: React.FC = () => {
           <SettingsIcon className={`w-6 h-6 text-white ${isPortrait ? '-rotate-90' : ''}`} />
         </button>
       </div>
-
-      {mosqueId && !isInstalled && (
-        <button
-          onClick={handleInstallClick}
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-6 py-3 bg-emerald-600/80 hover:bg-emerald-600 backdrop-blur-md rounded-2xl border border-emerald-400/50 shadow-2xl transition-all duration-300 text-white"
-          style={{ fontFamily: 'Cairo, sans-serif' }}
-        >
-          <Download className="w-5 h-5 shrink-0" />
-          <span className="font-semibold text-sm">تنزيل تطبيق المسجد</span>
-        </button>
-      )}
-
-      {installHelpOpen && (
-        <div
-          className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-6"
-          onClick={() => setInstallHelpOpen(false)}
-        >
-          <div
-            className="bg-gray-900 border border-white/15 rounded-2xl p-6 max-w-md w-full text-white text-right space-y-4"
-            style={{ fontFamily: 'Cairo, sans-serif' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold">تنزيل تطبيق المسجد</h3>
-              <button
-                onClick={() => setInstallHelpOpen(false)}
-                className="p-1 hover:bg-white/10 rounded-full"
-                aria-label="إغلاق"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <p className="text-white/70 text-sm leading-relaxed">
-              على الآيفون: اضغط زر المشاركة ثم "إضافة إلى الشاشة الرئيسية".
-            </p>
-            <p className="text-white/70 text-sm leading-relaxed">
-              على الأندرويد أو الكمبيوتر: افتح قائمة المتصفح ثم اختر "تثبيت التطبيق".
-            </p>
-          </div>
-        </div>
-      )}
     </>
   );
 };
