@@ -17,12 +17,18 @@ import {
   FileText,
   Key,
   Copy,
-  RefreshCw
+  RefreshCw,
+  Pencil,
+  Eye,
+  EyeOff,
+  Trash2
 } from 'lucide-react';
 import { collection, addDoc, getDocs, updateDoc, doc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import { createMosqueUser } from '../utils/storage';
-import { getAllMosques } from '../utils/mosqueUtils';
+import { getAllMosquesForAdmin } from '../utils/mosqueUtils';
+import { setMosqueHidden, deleteMosque, MosqueDetailsUpdate } from '../utils/mosqueAdmin';
+import MosqueEditDialog from './MosqueEditDialog';
 import { MosqueData, COUNTRIES } from '../types';
 import { getCitiesByCountry, getCityCoordinates } from '../data/cities';
 import {
@@ -68,6 +74,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onLogout, onBack }) => {
   const [creating, setCreating] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [editingMosque, setEditingMosque] = useState<MosqueData | null>(null);
+  const [deletingMosque, setDeletingMosque] = useState<MosqueData | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [mosqueFilter, setMosqueFilter] = useState<'all' | 'hidden'>('all');
 
   // Form state for creating new mosque
   const [newMosque, setNewMosque] = useState({
@@ -205,7 +215,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onLogout, onBack }) => {
   const loadMosques = async () => {
     setLoading(true);
     try {
-      const mosquesData = await getAllMosques();
+      const mosquesData = await getAllMosquesForAdmin();
       setMosques(mosquesData);
     } catch (error) {
       console.error('خطأ في تحميل المساجد:', error);
@@ -266,6 +276,57 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onLogout, onBack }) => {
   const clearMessages = () => {
     setSuccessMessage('');
     setErrorMessage('');
+  };
+
+  const handleToggleHidden = async (mosque: MosqueData) => {
+    clearMessages();
+    const nextHidden = !mosque.hidden;
+    try {
+      await setMosqueHidden(mosque.id, nextHidden);
+      setMosques((prev) => prev.map((m) => (m.id === mosque.id ? { ...m, hidden: nextHidden } : m)));
+      setSuccessMessage(
+        nextHidden
+          ? `تم إخفاء مسجد "${mosque.mosqueName}" من القائمة العامة`
+          : `تم إظهار مسجد "${mosque.mosqueName}" في القائمة العامة`
+      );
+    } catch (error) {
+      console.error('خطأ في تحديث حالة المسجد:', error);
+      setErrorMessage('تعذر تحديث حالة المسجد. حاول مرة أخرى');
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingMosque) return;
+    clearMessages();
+    setDeleteBusy(true);
+    try {
+      await deleteMosque(deletingMosque.id);
+      setMosques((prev) => prev.filter((m) => m.id !== deletingMosque.id));
+      setSuccessMessage(`تم حذف مسجد "${deletingMosque.mosqueName}"`);
+      setDeletingMosque(null);
+    } catch (error) {
+      console.error('خطأ في حذف المسجد:', error);
+      setErrorMessage('تعذر حذف المسجد. تحقق من الاتصال وحاول مرة أخرى');
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
+
+  const handleMosqueSaved = (mosqueId: string, update: MosqueDetailsUpdate) => {
+    setMosques((prev) =>
+      prev.map((m) =>
+        m.id === mosqueId
+          ? {
+              ...m,
+              mosqueName: update.mosqueName,
+              madhab: update.madhab,
+              location: { ...m.location, city: update.city, latitude: update.latitude, longitude: update.longitude }
+            }
+          : m
+      )
+    );
+    setEditingMosque(null);
+    setSuccessMessage('تم حفظ بيانات المسجد بنجاح');
   };
 
   return (
@@ -329,6 +390,42 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onLogout, onBack }) => {
             <button onClick={clearMessages} className="text-red-200 hover:text-red-100">
               <X className="w-4 h-4" />
             </button>
+          </div>
+        )}
+
+        {editingMosque && (
+          <MosqueEditDialog
+            mosque={editingMosque}
+            onClose={() => setEditingMosque(null)}
+            onSaved={(update) => handleMosqueSaved(editingMosque.id, update)}
+          />
+        )}
+
+        {deletingMosque && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+            <div className="w-full max-w-md bg-gray-900 border border-white/20 rounded-2xl p-6 space-y-5 shadow-2xl">
+              <h3 className="text-xl font-bold text-white">حذف المسجد</h3>
+              <p className="text-white/80">
+                هل أنت متأكد من حذف "{deletingMosque.mosqueName}"؟ سيتم حذف بياناته وإعداداته وخلفياته المرفوعة، ولا يمكن التراجع عن ذلك.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setDeletingMosque(null)}
+                  disabled={deleteBusy}
+                  className="px-5 py-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  disabled={deleteBusy}
+                  className="flex items-center gap-2 px-5 py-2 bg-red-500 hover:bg-red-600 disabled:bg-gray-500 rounded-xl transition-colors font-medium"
+                >
+                  {deleteBusy ? <Loader className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  <span>حذف نهائياً</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -591,7 +688,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onLogout, onBack }) => {
                   </button>
 
                   <button
-                    onClick={() => downloadMosquesSitemap(mosques)}
+                    onClick={() => downloadMosquesSitemap(mosques.filter((m) => !m.hidden))}
                     className="flex items-center justify-center gap-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-500/30 rounded-lg px-3 py-2 text-sm transition-all duration-300"
                   >
                     <Download className="w-3.5 h-3.5" />
@@ -624,14 +721,39 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onLogout, onBack }) => {
                     <p className="text-lg">لا توجد مساجد مسجلة حالياً</p>
                   </div>
                 ) : (
+                  <>
+                  <div className="flex gap-2 mb-6">
+                    {(['all', 'hidden'] as const).map((filter) => (
+                      <button
+                        key={filter}
+                        onClick={() => setMosqueFilter(filter)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                          mosqueFilter === filter ? 'bg-blue-500 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'
+                        }`}
+                      >
+                        {filter === 'all'
+                          ? `الكل (${mosques.length})`
+                          : `المخفية (${mosques.filter((m) => m.hidden).length})`}
+                      </button>
+                    ))}
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {mosques.map((mosque) => (
+                    {(mosqueFilter === 'hidden' ? mosques.filter((m) => m.hidden) : mosques).map((mosque) => (
                       <div
                         key={mosque.id}
-                        className="bg-white/5 rounded-xl p-4 border border-white/10 hover:border-white/20 transition-all duration-300"
+                        className={`bg-white/5 rounded-xl p-4 border border-white/10 hover:border-white/20 transition-all duration-300 flex flex-col ${
+                          mosque.hidden ? 'opacity-60' : ''
+                        }`}
                       >
-                        <h4 className="font-semibold text-white mb-2">{mosque.mosqueName}</h4>
-                        <div className="space-y-1 text-sm text-white/70">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h4 className="font-semibold text-white">{mosque.mosqueName}</h4>
+                          {mosque.hidden && (
+                            <span className="shrink-0 text-xs px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-200 border border-yellow-500/30">
+                              مخفي
+                            </span>
+                          )}
+                        </div>
+                        <div className="space-y-1 text-sm text-white/70 mb-4">
                           <p className="flex items-center gap-2">
                             <Mail className="w-3 h-3" />
                             {mosque.email}
@@ -644,9 +766,33 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onLogout, onBack }) => {
                             تاريخ الإنشاء: {mosque.createdAt.toLocaleDateString('ar-SA')}
                           </p>
                         </div>
+                        <div className="mt-auto grid grid-cols-3 gap-2">
+                          <button
+                            onClick={() => setEditingMosque(mosque)}
+                            className="flex items-center justify-center gap-1 px-2 py-2 text-sm bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 border border-blue-500/30 rounded-lg transition-colors"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            <span>تعديل</span>
+                          </button>
+                          <button
+                            onClick={() => handleToggleHidden(mosque)}
+                            className="flex items-center justify-center gap-1 px-2 py-2 text-sm bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-200 border border-yellow-500/30 rounded-lg transition-colors"
+                          >
+                            {mosque.hidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                            <span>{mosque.hidden ? 'إظهار' : 'إخفاء'}</span>
+                          </button>
+                          <button
+                            onClick={() => setDeletingMosque(mosque)}
+                            className="flex items-center justify-center gap-1 px-2 py-2 text-sm bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/30 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>حذف</span>
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
+                  </>
                 )}
               </div>
             </div>

@@ -166,6 +166,7 @@ export interface MosqueData {
   };
   createdAt: Date;
   isActive: boolean;
+  hidden?: boolean;
 }
 
 export interface NextPrayer {

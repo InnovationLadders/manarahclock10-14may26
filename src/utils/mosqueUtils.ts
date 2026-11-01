@@ -173,7 +173,8 @@ const fetchAndCacheMosques = async (): Promise<MosqueData[]> => {
             country: data.location.country || 'غير محدد'
           },
           createdAt: createdAtDate,
-          isActive: true
+          isActive: true,
+          hidden: data.hidden === true
         };
         
         mosques.push(mosqueData);
@@ -203,7 +204,7 @@ const isOnline = (): boolean => {
 };
 
 // جلب جميع المساجد المسجلة
-export const getAllMosques = async (): Promise<MosqueData[]> => {
+export const getAllMosquesForAdmin = async (): Promise<MosqueData[]> => {
   console.log('🔍 بدء جلب بيانات المساجد - حالة الاتصال:', isOnline() ? 'متصل' : 'غير متصل');
   
   // محاولة تحميل البيانات من التخزين المحلي أولاً
@@ -244,6 +245,12 @@ export const getAllMosques = async (): Promise<MosqueData[]> => {
     console.log('📵 غير متصل بالإنترنت - لا توجد بيانات محلية');
     return [];
   }
+};
+
+// جلب المساجد الظاهرة للعامة (بدون المساجد المخفية)
+export const getAllMosques = async (): Promise<MosqueData[]> => {
+  const mosques = await getAllMosquesForAdmin();
+  return mosques.filter((mosque) => !mosque.hidden);
 };
 
 // النسخة القديمة من getAllMosques (للمرجع فقط - يمكن حذفها لاحقاً)
